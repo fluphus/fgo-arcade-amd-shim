@@ -1,0 +1,8 @@
+# 构建中间产物与诊断临时文件
+*.o
+*.d
+*.obj
+*_rebuild.dll
+rebuild_err.txt
+syms_*.txt
+*.log

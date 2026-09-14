@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "continuous_rows": true,
+  "lowfps_trigger": true,
+  "manual_stop_retains_completed_stack": true,
+  "game_left_running": true,
+  "unicode_and_metacharacter_paths": true,
+  "analyzer_passed": true,
+  "native_game_used": false
+}

@@ -6,3 +6,7 @@
 rebuild_err.txt
 syms_*.txt
 *.log
+source/build/
+source/captures/
+__pycache__/
+*.pyc

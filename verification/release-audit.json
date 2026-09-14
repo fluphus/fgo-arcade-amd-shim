@@ -1,0 +1,13 @@
+﻿{
+    "renderer_commit":  "bf3740d",
+    "renderer_sha256":  "8F3A525C30E855B913E8A9D09019662B514C0E4189197CE1DCE2DF43754DBDB8",
+    "source_sha256":  "8645D24F0FE77BDC7A93C267A8FC0AAEA9CE11A072D4653F6DEE86F40F03B308",
+    "release_matches_deployed_renderer_except_pe_metadata":  true,
+    "packaged_source_rebuild_matches_except_pe_metadata":  true,
+    "gui_integration_tests_passed":  true,
+    "external_marker_files_required":  false,
+    "packaged_driver_fixtures_passed":  true,
+    "packaged_dll_byte_identical_to_tested":  true,
+    "capture_layer_packaged":  false,
+    "live_game_modified":  false
+}

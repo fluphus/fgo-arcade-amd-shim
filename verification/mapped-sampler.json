@@ -1,0 +1,318 @@
+{
+  "results": [
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 4,
+      "repeats": 20000,
+      "baseline_ms": 26.6656,
+      "candidate_ms": 26.6431,
+      "runs": {
+        "0": [
+          26.7232,
+          26.6519,
+          26.6656
+        ],
+        "1": [
+          26.6568,
+          26.6431,
+          26.5863
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 8,
+      "repeats": 20000,
+      "baseline_ms": 26.5816,
+      "candidate_ms": 26.7724,
+      "runs": {
+        "0": [
+          26.5816,
+          26.5809,
+          26.6061
+        ],
+        "1": [
+          26.7724,
+          26.8266,
+          26.6975
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 16,
+      "repeats": 20000,
+      "baseline_ms": 26.7041,
+      "candidate_ms": 26.6106,
+      "runs": {
+        "0": [
+          26.7146,
+          26.7041,
+          26.5421
+        ],
+        "1": [
+          26.7285,
+          26.6106,
+          26.5868
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 8,
+      "size": 24,
+      "repeats": 20000,
+      "baseline_ms": 53.2931,
+      "candidate_ms": 27.4037,
+      "runs": {
+        "0": [
+          53.2931,
+          53.6791,
+          53.2451
+        ],
+        "1": [
+          27.4037,
+          27.2603,
+          27.4131
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 48,
+      "repeats": 20000,
+      "baseline_ms": 80.5026,
+      "candidate_ms": 27.4921,
+      "runs": {
+        "0": [
+          80.5026,
+          80.5543,
+          80.114
+        ],
+        "1": [
+          27.4921,
+          27.4819,
+          27.5069
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 4,
+      "size": 80,
+      "repeats": 20000,
+      "baseline_ms": 159.9412,
+      "candidate_ms": 28.1291,
+      "runs": {
+        "0": [
+          159.817,
+          160.4413,
+          159.9412
+        ],
+        "1": [
+          27.7509,
+          28.9719,
+          28.1291
+        ]
+      }
+    },
+    {
+      "storage": "0x42",
+      "access": "0x52",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 152,
+      "repeats": 20000,
+      "baseline_ms": 186.4463,
+      "candidate_ms": 28.5158,
+      "runs": {
+        "0": [
+          187.512,
+          186.4463,
+          186.0364
+        ],
+        "1": [
+          28.481,
+          28.5158,
+          29.6208
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 4,
+      "repeats": 20000,
+      "baseline_ms": 26.717,
+      "candidate_ms": 26.7077,
+      "runs": {
+        "0": [
+          26.5294,
+          26.7515,
+          26.717
+        ],
+        "1": [
+          26.7077,
+          26.7136,
+          26.412
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 8,
+      "repeats": 20000,
+      "baseline_ms": 26.614,
+      "candidate_ms": 27.0339,
+      "runs": {
+        "0": [
+          26.614,
+          26.8573,
+          26.5002
+        ],
+        "1": [
+          26.5451,
+          27.8799,
+          27.0339
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 16,
+      "repeats": 20000,
+      "baseline_ms": 26.7653,
+      "candidate_ms": 26.6297,
+      "runs": {
+        "0": [
+          26.7653,
+          26.5048,
+          26.7688
+        ],
+        "1": [
+          26.6297,
+          26.6015,
+          26.7927
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 8,
+      "size": 24,
+      "repeats": 20000,
+      "baseline_ms": 53.5986,
+      "candidate_ms": 27.1707,
+      "runs": {
+        "0": [
+          53.4752,
+          53.5986,
+          53.9207
+        ],
+        "1": [
+          27.1148,
+          27.1707,
+          27.3081
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 48,
+      "repeats": 20000,
+      "baseline_ms": 79.8713,
+      "candidate_ms": 27.7644,
+      "runs": {
+        "0": [
+          80.5501,
+          79.8369,
+          79.8713
+        ],
+        "1": [
+          27.7644,
+          27.5175,
+          27.8188
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 4,
+      "size": 80,
+      "repeats": 20000,
+      "baseline_ms": 160.6833,
+      "candidate_ms": 27.6196,
+      "runs": {
+        "0": [
+          160.6833,
+          160.1926,
+          162.6232
+        ],
+        "1": [
+          28.3039,
+          27.5974,
+          27.6196
+        ]
+      }
+    },
+    {
+      "storage": "0xc2",
+      "access": "0xc2",
+      "protect": "0x404",
+      "offset": 0,
+      "size": 152,
+      "repeats": 20000,
+      "baseline_ms": 186.6372,
+      "candidate_ms": 28.2394,
+      "runs": {
+        "0": [
+          186.6372,
+          186.6714,
+          186.6007
+        ],
+        "1": [
+          28.2394,
+          28.5179,
+          28.2354
+        ]
+      }
+    }
+  ],
+  "renderer": "AMD Radeon RX 7900 XTX",
+  "equality_cases": 252,
+  "fresh_value_cases": 252,
+  "edge_cases": 54,
+  "ordered_gpu_cases": 8,
+  "limits": "Independent AMD mappings; current capture did not record map flags. No game FPS result."
+}

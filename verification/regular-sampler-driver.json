@@ -1,0 +1,1373 @@
+{
+  "evidence_program": 1156,
+  "vertex_byte_identical": true,
+  "reflection": [
+    {
+      "g_projection_view[0]": {
+        "type": 35666,
+        "size": 4,
+        "block": 0,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_view_transform[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 0,
+        "offset": 64,
+        "stride": 16,
+        "location": -1
+      },
+      "g_eye": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 112,
+        "stride": 0,
+        "location": -1
+      },
+      "g_shadow_camera_row2": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 128,
+        "stride": 0,
+        "location": -1
+      },
+      "g_depth_modifiers": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 144,
+        "stride": 0,
+        "location": -1
+      },
+      "g_depth_modifiers2": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 160,
+        "stride": 0,
+        "location": -1
+      },
+      "g_camera_traced_light": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 176,
+        "stride": 0,
+        "location": -1
+      },
+      "g_clip_plane_in_projection": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 192,
+        "stride": 0,
+        "location": -1
+      },
+      "g_parallel_light_colors[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_depth_fog_color[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 32,
+        "stride": 16,
+        "location": -1
+      },
+      "g_depth_fog": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 64,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_tone[0]": {
+        "type": 35666,
+        "size": 6,
+        "block": 1,
+        "offset": 80,
+        "stride": 16,
+        "location": -1
+      },
+      "g_cloud_shadow_texcoords[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 176,
+        "stride": 16,
+        "location": -1
+      },
+      "g_wind_perturbations[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 208,
+        "stride": 16,
+        "location": -1
+      },
+      "g_water_normal_map_fetcher": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 240,
+        "stride": 0,
+        "location": -1
+      },
+      "g_light_modifier": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 256,
+        "stride": 0,
+        "location": -1
+      },
+      "g_dither_modifier": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 272,
+        "stride": 0,
+        "location": -1
+      },
+      "g_border_field": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 288,
+        "stride": 0,
+        "location": -1
+      },
+      "g_character_positions[0]": {
+        "type": 35666,
+        "size": 32,
+        "block": 1,
+        "offset": 304,
+        "stride": 16,
+        "location": -1
+      },
+      "g_character_position_count": {
+        "type": 5126,
+        "size": 1,
+        "block": 1,
+        "offset": 816,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reflection_proxy_count": {
+        "type": 5126,
+        "size": 1,
+        "block": 1,
+        "offset": 820,
+        "stride": 0,
+        "location": -1
+      },
+      "g_wind_perturbation_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 824,
+        "stride": 0,
+        "location": -1
+      },
+      "g_water_normal_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 832,
+        "stride": 0,
+        "location": -1
+      },
+      "g_compat_ptr_0_0": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 840,
+        "stride": 0,
+        "location": -1
+      },
+      "g_compat_ptr_0_1": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 848,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 856,
+        "stride": 0,
+        "location": -1
+      },
+      "g_unique_planar_reflection_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 864,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reserved_per_scene": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 872,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_plane": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 880,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_tangent_": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 896,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_binormal_": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 912,
+        "stride": 0,
+        "location": -1
+      },
+      "g_deformable_texcoord": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 928,
+        "stride": 0,
+        "location": -1
+      },
+      "g_attribute_texcoord": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 944,
+        "stride": 0,
+        "location": -1
+      },
+      "g_volume_fog_texcoord_from_worlds_in_cmn[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 1,
+        "offset": 960,
+        "stride": 16,
+        "location": -1
+      },
+      "g_volume_fog_slice_from_linear_depth_in_cmn": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 1008,
+        "stride": 0,
+        "location": -1
+      },
+      "g_transforms[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 0
+      },
+      "g_texcoord_indices[0]": {
+        "type": 35669,
+        "size": 2,
+        "block": 2,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_texcoord_transforms[0]": {
+        "type": 35666,
+        "size": 20,
+        "block": 2,
+        "offset": 32,
+        "stride": 16,
+        "location": -1
+      },
+      "g_color_gains[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": 3,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_material_texcoord_transforms[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": 3,
+        "offset": 160,
+        "stride": 16,
+        "location": -1
+      },
+      "g_tangent_transforms[0]": {
+        "type": 35666,
+        "size": 4,
+        "block": 3,
+        "offset": 320,
+        "stride": 16,
+        "location": -1
+      },
+      "g_fresnel_color": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 384,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_diffuse_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 400,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_ambient_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 416,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_rim_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 432,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_specular_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 448,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_anisotropic_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 464,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_eye_paramf[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 3,
+        "offset": 480,
+        "stride": 16,
+        "location": -1
+      },
+      "g_npr_blendfactor[0]": {
+        "type": 35669,
+        "size": 2,
+        "block": 3,
+        "offset": 512,
+        "stride": 16,
+        "location": -1
+      },
+      "g_npr_eye_parami": {
+        "type": 35669,
+        "size": 1,
+        "block": 3,
+        "offset": 544,
+        "stride": 0,
+        "location": -1
+      },
+      "_amdshim_map_handle_pairs[0]": {
+        "type": 36296,
+        "size": 9,
+        "block": 3,
+        "offset": 560,
+        "stride": 16,
+        "location": -1
+      },
+      "_amdshim_map_handle_last": {
+        "type": 36294,
+        "size": 1,
+        "block": 3,
+        "offset": 704,
+        "stride": 0,
+        "location": -1
+      },
+      "g_plane_distances": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 0,
+        "stride": 0,
+        "location": -1
+      },
+      "g_shadow_fetches[0]": {
+        "type": 35666,
+        "size": 9,
+        "block": 4,
+        "offset": 16,
+        "stride": 16,
+        "location": -1
+      },
+      "g_parallel_light_dir": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 160,
+        "stride": 0,
+        "location": -1
+      },
+      "g_chara_extra_light_pos": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 176,
+        "stride": 0,
+        "location": -1
+      },
+      "g_chara_extra_light_dir": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 192,
+        "stride": 0,
+        "location": -1
+      },
+      "g_ao_intensities": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 208,
+        "stride": 0,
+        "location": -1
+      },
+      "g_screen_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 224,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_0": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 232,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_1": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 240,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_2": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 248,
+        "stride": 0,
+        "location": -1
+      },
+      "g_ssao_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 256,
+        "stride": 0,
+        "location": -1
+      },
+      "g_local_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 264,
+        "stride": 0,
+        "location": -1
+      },
+      "g_local_shadow_fetches[0]": {
+        "type": 35666,
+        "size": 32,
+        "block": 4,
+        "offset": 272,
+        "stride": 16,
+        "location": -1
+      },
+      "g_unique_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 784,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reserved_per_shadow": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 792,
+        "stride": 0,
+        "location": -1
+      },
+      "g_unique_shadow_fetcher[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 4,
+        "offset": 800,
+        "stride": 16,
+        "location": -1
+      },
+      "g_per_draw[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 14
+      },
+      "g_tiles": {
+        "type": 36304,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 13,
+        "initial": 0
+      },
+      "g_light_indices": {
+        "type": 36304,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 12,
+        "initial": 0
+      },
+      "g_cloud_shadow_sampler": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 10,
+        "initial": 0
+      },
+      "g_env_sampler": {
+        "type": 35680,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 11,
+        "initial": 0
+      }
+    },
+    {
+      "g_projection_view[0]": {
+        "type": 35666,
+        "size": 4,
+        "block": 0,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_view_transform[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 0,
+        "offset": 64,
+        "stride": 16,
+        "location": -1
+      },
+      "g_eye": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 112,
+        "stride": 0,
+        "location": -1
+      },
+      "g_shadow_camera_row2": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 128,
+        "stride": 0,
+        "location": -1
+      },
+      "g_depth_modifiers": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 144,
+        "stride": 0,
+        "location": -1
+      },
+      "g_depth_modifiers2": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 160,
+        "stride": 0,
+        "location": -1
+      },
+      "g_camera_traced_light": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 176,
+        "stride": 0,
+        "location": -1
+      },
+      "g_clip_plane_in_projection": {
+        "type": 35666,
+        "size": 1,
+        "block": 0,
+        "offset": 192,
+        "stride": 0,
+        "location": -1
+      },
+      "g_parallel_light_colors[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_depth_fog_color[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 32,
+        "stride": 16,
+        "location": -1
+      },
+      "g_depth_fog": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 64,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_tone[0]": {
+        "type": 35666,
+        "size": 6,
+        "block": 1,
+        "offset": 80,
+        "stride": 16,
+        "location": -1
+      },
+      "g_cloud_shadow_texcoords[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 176,
+        "stride": 16,
+        "location": -1
+      },
+      "g_wind_perturbations[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 1,
+        "offset": 208,
+        "stride": 16,
+        "location": -1
+      },
+      "g_water_normal_map_fetcher": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 240,
+        "stride": 0,
+        "location": -1
+      },
+      "g_light_modifier": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 256,
+        "stride": 0,
+        "location": -1
+      },
+      "g_dither_modifier": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 272,
+        "stride": 0,
+        "location": -1
+      },
+      "g_border_field": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 288,
+        "stride": 0,
+        "location": -1
+      },
+      "g_character_positions[0]": {
+        "type": 35666,
+        "size": 32,
+        "block": 1,
+        "offset": 304,
+        "stride": 16,
+        "location": -1
+      },
+      "g_character_position_count": {
+        "type": 5126,
+        "size": 1,
+        "block": 1,
+        "offset": 816,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reflection_proxy_count": {
+        "type": 5126,
+        "size": 1,
+        "block": 1,
+        "offset": 820,
+        "stride": 0,
+        "location": -1
+      },
+      "g_wind_perturbation_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 824,
+        "stride": 0,
+        "location": -1
+      },
+      "g_water_normal_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 832,
+        "stride": 0,
+        "location": -1
+      },
+      "g_compat_ptr_0_0": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 840,
+        "stride": 0,
+        "location": -1
+      },
+      "g_compat_ptr_0_1": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 848,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 856,
+        "stride": 0,
+        "location": -1
+      },
+      "g_unique_planar_reflection_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 864,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reserved_per_scene": {
+        "type": 5135,
+        "size": 1,
+        "block": 1,
+        "offset": 872,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_plane": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 880,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_tangent_": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 896,
+        "stride": 0,
+        "location": -1
+      },
+      "g_planar_reflection_binormal_": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 912,
+        "stride": 0,
+        "location": -1
+      },
+      "g_deformable_texcoord": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 928,
+        "stride": 0,
+        "location": -1
+      },
+      "g_attribute_texcoord": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 944,
+        "stride": 0,
+        "location": -1
+      },
+      "g_volume_fog_texcoord_from_worlds_in_cmn[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 1,
+        "offset": 960,
+        "stride": 16,
+        "location": -1
+      },
+      "g_volume_fog_slice_from_linear_depth_in_cmn": {
+        "type": 35666,
+        "size": 1,
+        "block": 1,
+        "offset": 1008,
+        "stride": 0,
+        "location": -1
+      },
+      "g_transforms[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 0
+      },
+      "g_texcoord_indices[0]": {
+        "type": 35669,
+        "size": 2,
+        "block": 2,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_texcoord_transforms[0]": {
+        "type": 35666,
+        "size": 20,
+        "block": 2,
+        "offset": 32,
+        "stride": 16,
+        "location": -1
+      },
+      "g_color_gains[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": 3,
+        "offset": 0,
+        "stride": 16,
+        "location": -1
+      },
+      "g_material_texcoord_transforms[0]": {
+        "type": 35666,
+        "size": 10,
+        "block": 3,
+        "offset": 160,
+        "stride": 16,
+        "location": -1
+      },
+      "g_tangent_transforms[0]": {
+        "type": 35666,
+        "size": 4,
+        "block": 3,
+        "offset": 320,
+        "stride": 16,
+        "location": -1
+      },
+      "g_fresnel_color": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 384,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_diffuse_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 400,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_ambient_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 416,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_rim_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 432,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_specular_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 448,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_anisotropic_param": {
+        "type": 35666,
+        "size": 1,
+        "block": 3,
+        "offset": 464,
+        "stride": 0,
+        "location": -1
+      },
+      "g_npr_eye_paramf[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": 3,
+        "offset": 480,
+        "stride": 16,
+        "location": -1
+      },
+      "g_npr_blendfactor[0]": {
+        "type": 35669,
+        "size": 2,
+        "block": 3,
+        "offset": 512,
+        "stride": 16,
+        "location": -1
+      },
+      "g_npr_eye_parami": {
+        "type": 35669,
+        "size": 1,
+        "block": 3,
+        "offset": 544,
+        "stride": 0,
+        "location": -1
+      },
+      "_amdshim_map_handle_pairs[0]": {
+        "type": 36296,
+        "size": 9,
+        "block": 3,
+        "offset": 560,
+        "stride": 16,
+        "location": -1
+      },
+      "_amdshim_map_handle_last": {
+        "type": 36294,
+        "size": 1,
+        "block": 3,
+        "offset": 704,
+        "stride": 0,
+        "location": -1
+      },
+      "g_plane_distances": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 0,
+        "stride": 0,
+        "location": -1
+      },
+      "g_shadow_fetches[0]": {
+        "type": 35666,
+        "size": 9,
+        "block": 4,
+        "offset": 16,
+        "stride": 16,
+        "location": -1
+      },
+      "g_parallel_light_dir": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 160,
+        "stride": 0,
+        "location": -1
+      },
+      "g_chara_extra_light_pos": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 176,
+        "stride": 0,
+        "location": -1
+      },
+      "g_chara_extra_light_dir": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 192,
+        "stride": 0,
+        "location": -1
+      },
+      "g_ao_intensities": {
+        "type": 35666,
+        "size": 1,
+        "block": 4,
+        "offset": 208,
+        "stride": 0,
+        "location": -1
+      },
+      "g_screen_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 224,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_0": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 232,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_1": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 240,
+        "stride": 0,
+        "location": -1
+      },
+      "g_cascaded_shadow_map_handle_2": {
+        "type": 36294,
+        "size": 1,
+        "block": 4,
+        "offset": 248,
+        "stride": 0,
+        "location": -1
+      },
+      "g_ssao_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 256,
+        "stride": 0,
+        "location": -1
+      },
+      "g_local_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 264,
+        "stride": 0,
+        "location": -1
+      },
+      "g_local_shadow_fetches[0]": {
+        "type": 35666,
+        "size": 32,
+        "block": 4,
+        "offset": 272,
+        "stride": 16,
+        "location": -1
+      },
+      "g_unique_shadow_map_handle": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 784,
+        "stride": 0,
+        "location": -1
+      },
+      "g_reserved_per_shadow": {
+        "type": 5135,
+        "size": 1,
+        "block": 4,
+        "offset": 792,
+        "stride": 0,
+        "location": -1
+      },
+      "g_unique_shadow_fetcher[0]": {
+        "type": 35666,
+        "size": 3,
+        "block": 4,
+        "offset": 800,
+        "stride": 16,
+        "location": -1
+      },
+      "g_per_draw[0]": {
+        "type": 35666,
+        "size": 2,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 41
+      },
+      "_perf_rs_shadow0": {
+        "type": 35682,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 38,
+        "initial": 0
+      },
+      "_perf_rs_shadow1": {
+        "type": 35682,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 39,
+        "initial": 0
+      },
+      "_perf_rs_shadow2": {
+        "type": 35682,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 40,
+        "initial": 0
+      },
+      "g_tiles": {
+        "type": 36304,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 13,
+        "initial": 20
+      },
+      "g_light_indices": {
+        "type": 36304,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 12,
+        "initial": 21
+      },
+      "_perf_rs_handle_5": {
+        "type": 36292,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 18,
+        "initial": 0
+      },
+      "_perf_rs_handle_3": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 16,
+        "initial": 0
+      },
+      "_perf_rs_handle_4": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 17,
+        "initial": 0
+      },
+      "g_cloud_shadow_sampler": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 10,
+        "initial": 27
+      },
+      "g_env_sampler": {
+        "type": 35680,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 11,
+        "initial": 19
+      },
+      "_perf_rs_maps[0]": {
+        "type": 35678,
+        "size": 19,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 19,
+        "initial": 0
+      },
+      "_perf_rs_handle_1": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 14,
+        "initial": 0
+      },
+      "_perf_rs_handle_2": {
+        "type": 35678,
+        "size": 1,
+        "block": -1,
+        "offset": -1,
+        "stride": -1,
+        "location": 15,
+        "initial": 0
+      }
+    }
+  ],
+  "batched_uniform_layout": {
+    "matching_members": 67,
+    "mismatched_pairs_rejected": 66,
+    "checked_properties": 6
+  },
+  "uniform_name_lookup": {
+    "matching_names": 82,
+    "missing_name_fallbacks": 1
+  },
+  "identical_pixels": true,
+  "material_uniform_cases": 20,
+  "distinct_pixel_hashes": 20,
+  "state_restored": true,
+  "shader_paths": [
+    "material slots",
+    "screen shadow",
+    "three cascades",
+    "water",
+    "planar reflection"
+  ],
+  "reflected_read_ranges": [
+    [
+      1,
+      820,
+      824
+    ],
+    [
+      1,
+      832,
+      840
+    ],
+    [
+      1,
+      856,
+      864
+    ],
+    [
+      3,
+      560,
+      712
+    ],
+    [
+      4,
+      224,
+      272
+    ]
+  ],
+  "external_failure_metadata_verified": true,
+  "deleted_name_reuse": {
+    "new_upload_eligible": true,
+    "pixels_and_state_equal": true,
+    "live_gpu_reallocation_excluded": true
+  },
+  "production_upload_cases": [
+    "null allocation",
+    "nonzero range",
+    "split uploads",
+    "one-byte handle hole",
+    "legacy route misses",
+    "identical pixels/state",
+    "unread prefix clear/copy stays eligible",
+    "handle clear/copy rejects",
+    "failure metadata",
+    "mapping",
+    "reallocation",
+    "GPU use",
+    "deletion"
+  ],
+  "colliding_buffer_uploads_retained": 5,
+  "persistent_mapped_tails": {
+    "binding_offset": 256,
+    "spans": {
+      "1": [
+        820,
+        864
+      ],
+      "4": [
+        224,
+        272
+      ]
+    },
+    "distinct_pixel_hashes": 2,
+    "changing_proxy_falls_back": true
+  },
+  "default_handle_mode_uses_original": true,
+  "fallback_preserves_state": true,
+  "measurements": [
+    {
+      "lowered": false,
+      "submit_ms": 0.0533,
+      "completed_ms": 484.147800001665
+    },
+    {
+      "integrated": true,
+      "hits": 2000,
+      "completed_ms": 17.869699993752874
+    }
+  ],
+  "ordinary_samplers": 31,
+  "lifetime_fallbacks": [
+    "table_capacity",
+    "texture_deletion",
+    "sampler_deletion",
+    "relink_notification",
+    "context_change"
+  ]
+}

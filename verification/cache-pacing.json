@@ -1,0 +1,148 @@
+{
+  "cache": {
+    "migration_entries": 2964,
+    "unique_entries": 1641,
+    "fixtures": [
+      {
+        "fixture": "program_1156_shader_1154.glsl",
+        "stage": 35633,
+        "bytes": 37443
+      },
+      {
+        "fixture": "program_1156_shader_1155.glsl",
+        "stage": 35632,
+        "bytes": 59311
+      },
+      {
+        "fixture": "native_2625.glsl",
+        "stage": 35633,
+        "bytes": 2510
+      },
+      {
+        "fixture": "native_2631.glsl",
+        "stage": 35633,
+        "bytes": 2937
+      },
+      {
+        "fixture": "native_2633.glsl",
+        "stage": 35633,
+        "bytes": 4417
+      },
+      {
+        "fixture": "native_2635.glsl",
+        "stage": 35633,
+        "bytes": 4188
+      },
+      {
+        "fixture": "native_shader_2602.glsl",
+        "stage": 35633,
+        "bytes": 9045
+      },
+      {
+        "fixture": "native_shader_2603.glsl",
+        "stage": 35632,
+        "bytes": 4510
+      },
+      {
+        "fixture": "native_shader_2610.glsl",
+        "stage": 35633,
+        "bytes": 18099
+      }
+    ],
+    "different_id_equal": true,
+    "negative_lengths": true,
+    "stage_and_source_misses": true,
+    "delete_and_replace": true,
+    "cold_translation_ms": 24.834299983922392,
+    "warm_cache_ms": 1.3327999913599342,
+    "elapsed_ms": 88.09629999450408
+  },
+  "diagnostic_draw": [
+    2000,
+    0,
+    0,
+    0,
+    1029
+  ],
+  "pacing": [
+    {
+      "legacy": true,
+      "work_ms": 0.0,
+      "frames": 180,
+      "cpu_ms": 156.25,
+      "cpu_cycles": 461855709.0,
+      "wall_ms": 4176.9798,
+      "high_resolution_timer": true,
+      "min_ms": 16.6663,
+      "median_ms": 21.709899999999998,
+      "p95_ms": 30.2625,
+      "max_ms": 30.4743
+    },
+    {
+      "legacy": false,
+      "work_ms": 0.0,
+      "frames": 180,
+      "cpu_ms": 140.625,
+      "cpu_cycles": 188888153.0,
+      "wall_ms": 3000.0575,
+      "high_resolution_timer": true,
+      "min_ms": 16.6661,
+      "median_ms": 16.6666,
+      "p95_ms": 16.6667,
+      "max_ms": 16.6873
+    },
+    {
+      "legacy": true,
+      "work_ms": 8.0,
+      "frames": 90,
+      "cpu_ms": 734.375,
+      "cpu_cycles": 3199704122.0,
+      "wall_ms": 2081.781,
+      "high_resolution_timer": true,
+      "min_ms": 16.6664,
+      "median_ms": 17.164749999999998,
+      "p95_ms": 30.3673,
+      "max_ms": 30.4519
+    },
+    {
+      "legacy": false,
+      "work_ms": 8.0,
+      "frames": 90,
+      "cpu_ms": 750.0,
+      "cpu_cycles": 3083935761.0,
+      "wall_ms": 1500.1136,
+      "high_resolution_timer": true,
+      "min_ms": 16.6665,
+      "median_ms": 16.6666,
+      "p95_ms": 16.6667,
+      "max_ms": 16.7311
+    },
+    {
+      "legacy": true,
+      "work_ms": 20.0,
+      "frames": 12,
+      "cpu_ms": 234.375,
+      "cpu_cycles": 1004264868.0,
+      "wall_ms": 240.0012,
+      "high_resolution_timer": true,
+      "min_ms": 20.0001,
+      "median_ms": 20.0001,
+      "p95_ms": 20.0001,
+      "max_ms": 20.0001
+    },
+    {
+      "legacy": false,
+      "work_ms": 20.0,
+      "frames": 12,
+      "cpu_ms": 234.375,
+      "cpu_cycles": 996180602.0,
+      "wall_ms": 240.0012,
+      "high_resolution_timer": true,
+      "min_ms": 20.0,
+      "median_ms": 20.0001,
+      "p95_ms": 20.0001,
+      "max_ms": 20.0002
+    }
+  ],
+  "passed": true
+}

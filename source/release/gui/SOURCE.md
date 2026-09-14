@@ -71,3 +71,31 @@ Add `-Benchmarks` for the SSE4.1 mapped-memory read benchmark.
 Results and compiler logs go to `build/release-fixtures`. Microbenchmarks are
 not game-FPS measurements. The bundled regression inputs are selected captured
 shader text, not a complete battle replay.
+
+## Reuse an Existing Shader Cache
+
+Revision 2 shares translated shaders across object IDs. To reuse a previous
+installation's revision-1 cache without repeating translation:
+
+```powershell
+$gameDirectory = Read-Host 'Game directory'
+python .\tools\migrate-shader-cache.py --source "$gameDirectory\shader-cache-r1" --destination "$gameDirectory\shader-cache-r2"
+```
+
+The original cache is retained. Migration is optional; the game creates the
+new cache automatically when needed.
+
+## Cache and Pacing Regression
+
+The following checks historical cache payloads, the included shader fixtures,
+draw state and limiter timing in a separate process. It does not attach to the
+game. It requires a revision-1 cache from an earlier installation.
+
+```powershell
+$gameDirectory = Read-Host 'Game directory'
+$testDirectory = '.\build\cache-pacing'
+New-Item -ItemType Directory -Force $testDirectory | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\external_optimization_wrapper.c -o "$testDirectory\wrapper.dll" -lgdi32 -luser32
+python .\tools\migrate-shader-cache.py --source "$gameDirectory\shader-cache-r1" --destination "$testDirectory\migrated"
+python .\tests\external_optimization_test.py --wrapper "$testDirectory\wrapper.dll" --old-cache "$gameDirectory\shader-cache-r1" --migrated-cache "$testDirectory\migrated" --output "$testDirectory\results.json"
+```

@@ -12,6 +12,8 @@
   "release/gui/README.zh-CN.md", "release/gui/README.en.md", "release/gui/README.ja.md",
   "tools/start-capture.ps1", "tools/stop-capture.ps1", "tools/build-tools.ps1",
   "tools/analyze-capture.py", "tools/run-fixtures.ps1", "tools/requirements.txt",
+  "tools/migrate-shader-cache.py", "tests/external_optimization_wrapper.c",
+  "tests/external_optimization_test.py", "tests/shader_cache_startup_test.c",
   "tests/battle_counter_live.py", "tests/battle_lowfps_stacks.py", "tests/battle_cpu_sample.c",
   "tests/capture_release_test.py", "tests/capture_release_fixture.c",
   "tests/gui_release_test.cs", "tests/release_binary_compare.py",

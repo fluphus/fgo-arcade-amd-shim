@@ -1,13 +1,17 @@
-﻿{
-    "renderer_commit":  "bf3740d",
-    "renderer_sha256":  "8F3A525C30E855B913E8A9D09019662B514C0E4189197CE1DCE2DF43754DBDB8",
-    "source_sha256":  "8645D24F0FE77BDC7A93C267A8FC0AAEA9CE11A072D4653F6DEE86F40F03B308",
-    "release_matches_deployed_renderer_except_pe_metadata":  true,
-    "packaged_source_rebuild_matches_except_pe_metadata":  true,
-    "gui_integration_tests_passed":  true,
-    "external_marker_files_required":  false,
-    "packaged_driver_fixtures_passed":  true,
-    "packaged_dll_byte_identical_to_tested":  true,
-    "capture_layer_packaged":  false,
-    "live_game_modified":  false
+{
+  "renderer_commit": "44a20cb",
+  "renderer_sha256": "A85042D91EA60A3108F28DFAD4673265F2E1F2A402B252436E5D5757C368A0F0",
+  "source_sha256": "C401BFDAB9470A1A2DDCEF07E2BEC5BF966806B11788AFA6954830A781486035",
+  "packaged_dll_byte_identical_to_tested_and_deployed": true,
+  "packaged_source_rebuild_matches_except_pe_metadata": true,
+  "current_offline_regressions": [
+    "cache-pacing.json",
+    "cache-migration.json",
+    "regular-sampler-driver.json"
+  ],
+  "gui_and_installer_unchanged_from_public_commit": "4120035612e623876d717680b98786bdbc8f689a",
+  "inherited_baseline_validation": "summary.json",
+  "external_marker_files_required": false,
+  "capture_layer_packaged": false,
+  "gameplay_monitoring_used_for_this_update": false
 }

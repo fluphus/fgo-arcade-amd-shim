@@ -1353,13 +1353,13 @@
   "measurements": [
     {
       "lowered": false,
-      "submit_ms": 0.0533,
-      "completed_ms": 484.147800001665
+      "submit_ms": 0.0657,
+      "completed_ms": 501.6211999900406
     },
     {
       "integrated": true,
       "hits": 2000,
-      "completed_ms": 17.869699993752874
+      "completed_ms": 21.210299993981607
     }
   ],
   "ordinary_samplers": 31,

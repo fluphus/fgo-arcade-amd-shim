@@ -17082,44 +17082,6 @@ static void WINAPI wrap_glMultiDrawArrays(GLenum mode, const GLint *first, const
     skinning_writer_boundary_sample(
         "glMultiDrawArrays", "after_feedback_restore", mode,
         count ? count[0] : 0, drawcount);
-    if (g_current_program == 200) {
-        typedef void (WINAPI *glReadPixels_t)(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *);
-        typedef void (WINAPI *glReadBuffer_t)(GLenum);
-        typedef void (WINAPI *glGetIntegerv_t)(GLenum, GLint *);
-        static glReadPixels_t rp;
-        static glReadBuffer_t rb;
-        static glGetIntegerv_t giv;
-        if (!rp) rp = (glReadPixels_t)trace_resolve("glReadPixels");
-        if (!rb) rb = (glReadBuffer_t)trace_resolve("glReadBuffer");
-        if (!giv) giv = (glGetIntegerv_t)trace_resolve("glGetIntegerv");
-        if (rp && rb && giv) {
-            enum { PW = 128, PH = 72 };
-            unsigned char buf[PW * PH * 3];
-            memset(buf, 0, sizeof buf);
-            GLint prev = 0;
-            giv(0x0C02, &prev);
-            rb(0x0404 /* GL_FRONT */);
-            rp(0, 0, PW, PH, 0x1907, 0x1401, buf);
-            if (prev != 0x0404 && prev != 0x0405 && prev != 0) rb((GLenum)prev);
-            long long sum[3] = {0,0,0};
-            int nonzero = 0, white = 0;
-            for (int i = 0; i < PW * PH; i++) {
-                unsigned char r = buf[i*3+0], g = buf[i*3+1], b = buf[i*3+2];
-                sum[0] += r; sum[1] += g; sum[2] += b;
-                if (r || g || b) nonzero++;
-                if (r > 235 && g > 235 && b > 235) white++;
-            }
-            FILE *f = fopen("C:\\fgo\\_tools\\glshim\\swap.log", "a");
-            if (f) {
-                fprintf(f, "[%llu] FRONT-AFTER-UI avg=(%lld,%lld,%lld) nonzero=%d/%d white=%d\n",
-                        (unsigned long long)g_frame_count,
-                        sum[0]/(PW*PH), sum[1]/(PW*PH), sum[2]/(PW*PH),
-                        nonzero, PW*PH, white);
-                fclose(f);
-            }
-        }
-    }
-
     perf_ordinary_end(perf_wrapper_start);}
 
 static void WINAPI wrap_glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const void *const *indices, GLsizei drawcount)
@@ -30607,7 +30569,7 @@ typedef struct {
     char magic[8];
     unsigned int version;
     unsigned int shader_type;
-    unsigned int shader_id;
+    unsigned int reserved;
     unsigned int source_len;
     unsigned int output_len;
     unsigned int pointer_size;
@@ -30616,14 +30578,13 @@ typedef struct {
 } shader_cache_header;
 
 static unsigned long long shader_cache_hash(const char *source, unsigned int len,
-                                            GLenum type, GLuint shader,
+                                            GLenum type,
                                             unsigned long long seed)
 {
     unsigned long long h = seed;
     unsigned int i;
     for (i = 0; i < len; ++i) { h ^= (unsigned char)source[i]; h *= 1099511628211ULL; }
     h ^= type; h *= 1099511628211ULL;
-    h ^= shader; h *= 1099511628211ULL;
     h ^= len; h *= 1099511628211ULL;
     return h;
 }
@@ -30643,10 +30604,14 @@ static int shader_cache_path(GLuint shader, GLenum type, const char *source,
     slash = strrchr(module, '\\');
     if (!slash) return 0;
     *slash = 0;
-    *ha = shader_cache_hash(source, len, type, shader, 1469598103934665603ULL);
-    *hb = shader_cache_hash(source, len, type, shader, 1099511628211ULL ^ 0x5348494d43414348ULL);
-    if (_snprintf(path, cap, "%s\\shader-cache-r1\\%u-%08x-%016llx-%016llx.glsl",
-                  module, shader, (unsigned)type,
+    /* GL object names can change with shader creation order. The fixed release
+       profile lowers identical source/stage pairs identically; metadata is
+       restored into the receiving object. Bump the directory when lowering or
+       serialized metadata changes. */
+    *ha = shader_cache_hash(source, len, type, 1469598103934665603ULL);
+    *hb = shader_cache_hash(source, len, type, 1099511628211ULL ^ 0x5348494d43414348ULL);
+    if (_snprintf(path, cap, "%s\\shader-cache-r2\\%08x-%016llx-%016llx.glsl",
+                  module, (unsigned)type,
                   (unsigned long long)*ha, (unsigned long long)*hb) < 0) return 0;
     path[cap - 1] = 0;
     return 1;
@@ -30689,8 +30654,8 @@ static int shader_cache_try_load(GLuint shader, GLenum type, const char *source,
     if (!shader_cache_path(shader, type, source, len, path, sizeof path, &ha, &hb)) return 0;
     f = fopen(path, "rb");
     if (!f) return 0;
-    if (fread(&h, 1, sizeof h, f) != sizeof h || memcmp(h.magic, "FGOSHDR1", 8) != 0 ||
-        h.version != 1 || h.shader_type != type || h.shader_id != shader ||
+    if (fread(&h, 1, sizeof h, f) != sizeof h || memcmp(h.magic, "FGOSHDR2", 8) != 0 ||
+        h.version != 2 || h.shader_type != type || h.reserved != 0 ||
         h.source_len != len || h.hash_a != ha || h.hash_b != hb ||
         h.output_len == 0 || h.output_len > 64U * 1024U * 1024U ||
         h.pointer_size != sizeof g_shader_ptrs[shader]) { fclose(f); return 0; }
@@ -30724,8 +30689,8 @@ static void shader_cache_write(GLuint shader, GLenum type, const char *source,
     CreateDirectoryA(dir, NULL);
     _snprintf(temp, sizeof temp, "%s.tmp.%lu", path, (unsigned long)GetCurrentProcessId());
     f = fopen(temp, "wb"); if (!f) return;
-    memset(&h, 0, sizeof h); memcpy(h.magic, "FGOSHDR1", 8); h.version = 1;
-    h.shader_type = type; h.shader_id = shader; h.source_len = len;
+    memset(&h, 0, sizeof h); memcpy(h.magic, "FGOSHDR2", 8); h.version = 2;
+    h.shader_type = type; h.source_len = len;
     h.output_len = g_shader_cache_capture_len; h.pointer_size = sizeof g_shader_ptrs[shader];
     h.hash_a = ha; h.hash_b = hb;
     if (fwrite(&h, 1, sizeof h, f) != sizeof h ||
@@ -31450,6 +31415,7 @@ void WINAPI glShaderSource_shim(unsigned int shader, int count, const char *cons
     unsigned int len = 0;
     if (count == 1 && string && string[0]) {
         int n = length ? length[0] : (int)strlen(string[0]);
+        if (n < 0) n = (int)strlen(string[0]);
         if (n >= 0) len = (unsigned int)n;
     }
     api_census_group_call(API_GROUP_SHADER_PROGRAM);
@@ -34085,9 +34051,47 @@ static void save_bmp(const char *path, int w, int h, const unsigned char *rgb)
     fclose(f);
 }
 
-/* The game's timers advance once per render-loop boundary.  The release shim
-   got an incidental wait from its per-swap readback; keep that behavior
-   explicit and deterministic without touching either swap hook. */
+static HANDLE pace_timer(void)
+{
+    static HANDLE timer;
+    static int attempted;
+    if (!attempted) {
+        attempted = 1;
+        /* Windows 10 1803+: high-resolution timer, independent of tick rate. */
+        timer = CreateWaitableTimerExW(NULL, NULL, 0x00000002,
+                                      TIMER_MODIFY_STATE | SYNCHRONIZE);
+    }
+    return timer;
+}
+
+static void pace_wait_until(LARGE_INTEGER *now, LONGLONG deadline, LONGLONG frequency)
+{
+    HANDLE timer = pace_timer();
+    const LONGLONG spin = frequency / 2000; /* Last 0.5 ms absorbs wake jitter. */
+    for (;;) {
+        LONGLONG remaining = deadline - now->QuadPart;
+        if (remaining <= 0) return;
+        if (timer && remaining > spin) {
+            LARGE_INTEGER due;
+            due.QuadPart = -((remaining - spin) * 10000000 / frequency);
+            if (!due.QuadPart) due.QuadPart = -1;
+            if (SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE) &&
+                WaitForSingleObject(timer, INFINITE) == WAIT_OBJECT_0) {
+                QueryPerformanceCounter(now);
+                continue;
+            }
+        }
+        if (!timer || remaining > spin) {
+            DWORD ms = (DWORD)(remaining * 1000 / frequency);
+            if (ms > 1) Sleep(ms - 1);
+        }
+        YieldProcessor();
+        QueryPerformanceCounter(now);
+    }
+}
+
+/* Keep the established frame boundary and 60 Hz scheduling policy. A late
+   frame resets from its actual arrival; it never starts a catch-up burst. */
 static void pace_frame_60hz(void)
 {
     static LARGE_INTEGER freq;
@@ -34098,13 +34102,8 @@ static void pace_frame_60hz(void)
     if (last.QuadPart != 0 && freq.QuadPart > 0) {
         const LONGLONG target = freq.QuadPart / 60;
         LONGLONG remaining = target - (now.QuadPart - last.QuadPart);
-        if (remaining > 0) {
-            DWORD ms = (DWORD)((remaining * 1000) / freq.QuadPart);
-            if (ms > 1) Sleep(ms - 1);
-            do {
-                QueryPerformanceCounter(&now);
-            } while (now.QuadPart - last.QuadPart < target);
-        }
+        if (remaining > 0)
+            pace_wait_until(&now, last.QuadPart + target, freq.QuadPart);
     }
     last = now;
 }

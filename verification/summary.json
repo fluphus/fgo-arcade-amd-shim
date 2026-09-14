@@ -1,13 +1,15 @@
-﻿{
-    "passed":  true,
-    "checks":  [
-                   "pointer_content_cache_test",
-                   "emitter_header_cache_test",
-                   "battle_emitter_pointer_test",
-                   "mapped_sampler_driver",
-                   "regular_sampler_driver",
-                   "mapped_memory_benchmark"
-               ],
-    "driver_tests":  true,
-    "benchmarks":  true
+{
+  "passed": true,
+  "checks": [
+    "pointer_content_cache_test",
+    "emitter_header_cache_test",
+    "battle_emitter_pointer_test",
+    "mapped_sampler_driver",
+    "regular_sampler_driver",
+    "mapped_memory_benchmark"
+  ],
+  "driver_tests": true,
+  "benchmarks": true,
+  "renderer_commit": "bf3740d",
+  "scope": "Original baseline validation. Current update: cache-pacing.json, cache-migration.json and regular-sampler-driver.json."
 }

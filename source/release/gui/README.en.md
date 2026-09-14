@@ -6,6 +6,8 @@ Only **AMD Radeon RX 7900 XTX** has been tested. The performance guarantee is li
 
 **Only 1920×1080 (1080p) is supported. Other resolutions have known rendering errors. The patch has a built-in 60 FPS cap.**
 
+This update improves shader-cache reuse and frame pacing. The first launch after updating may rebuild the shader cache.
+
 ## Install and Restore
 
 1. Extract the entire archive and close the game.

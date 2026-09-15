@@ -1,18 +1,16 @@
 {
-  "renderer_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
-  "renderer_sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA",
-  "source_sha256": "5255806D0581BCDD4A4F089F813BE845760A0039D2CB9BBE103000BC5999E368",
+  "renderer_commit": "520216e64580d32fbf0cbdeef595ecedcf85887f",
+  "renderer_sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76",
+  "source_sha256": "9F77A6B753EDF33A829C8245E268049FC89CF6A8E4A182468EC67F32B4EF31A4",
   "packaged_dll_byte_identical_to_tested_and_deployed": true,
   "packaged_source_rebuild_matches_except_pe_metadata": true,
   "compiler_warnings": 24,
   "compiler_errors": 0,
   "production_lifetime_audit_compiled_out": true,
   "current_offline_regressions": [
-    "mapped-cache-driver-exposed.json",
-    "mapped-cache-benchmark.json",
-    "regular-sampler-driver.json"
+    "compute-pointer-fixed.json"
   ],
-  "current_production_verification": "mapped-cache-production.json",
+  "current_production_verification": "compute-pointer-production.json",
   "gui_installer_and_native_sampler_unchanged_from_public_commit": "1fbf3e4a2f27ab19235493e0ee7c0c867605a6d2",
   "inherited_validation": [
     "summary.json",
@@ -21,7 +19,11 @@
     "cache-pacing.json",
     "cache-migration.json",
     "mapped-memory.json",
-    "mapped-sampler.json"
+    "mapped-sampler.json",
+    "mapped-cache-production.json",
+    "mapped-cache-driver-exposed.json",
+    "mapped-cache-benchmark.json",
+    "regular-sampler-driver.json"
   ],
   "external_marker_files_required": false,
   "capture_layer_packaged": false,
@@ -32,5 +34,7 @@
     "result": "Almost entirely 60 FPS, minimum observed about 57 FPS during servant switches",
     "instrumented_latest_run": false
   },
-  "visual_status": "Baseline rendering previously confirmed; current offline sampler regression verifies pixels and state. Latest user report confirmed performance, not a new full visual regression."
+  "visual_status": "User confirmed the London white-flash fix in gameplay on RX 7900 XTX.",
+  "renderer_base_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "renderer_patch_scope": "Compute-dispatch pointer replay only"
 }

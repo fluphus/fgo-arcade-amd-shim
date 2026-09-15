@@ -1,0 +1,905 @@
+#version 450
+#extension GL_ARB_bindless_texture : enable
+#extension GL_NV_gpu_shader5 : enable
+#define SAMPLER_INDEX_NORMAL0 0
+#define SAMPLER_INDEX_NORMAL1 1
+#define SAMPLER_INDEX_NORMAL2 2
+#define SAMPLER_INDEX_NORMAL3 3
+#define SAMPLER_INDEX_DIFFUSE0 4
+#define SAMPLER_INDEX_DIFFUSE1 5
+#define SAMPLER_INDEX_DIFFUSE2 6
+#define SAMPLER_INDEX_DIFFUSE3 7
+#define SAMPLER_INDEX_SPECULAR0 8
+#define SAMPLER_INDEX_SPECULAR1 9
+#define SAMPLER_INDEX_SPECULAR2 10
+#define SAMPLER_INDEX_SPECULAR3 11
+#define SAMPLER_INDEX_HEIGHT0 12
+#define SAMPLER_INDEX_WEIGHT 13
+#define SAMPLER_INDEX_BAKED_SHADOW 14
+#define SAMPLER_INDEX_BAKED_LIGHT 15
+#define SAMPLER_INDEX_OPACITY0 16
+#define SAMPLER_INDEX_OPACITY1 17
+#define SAMPLER_INDEX_LAYERED_DIFFUSE 18
+#define SAMPLER_INDEX_ENVIRONMENT_CUBE 19
+#define SamplerIndexInShader_TiledLightTiles 20
+#define SamplerIndexInShader_TiledLightIndices 21
+#define SamplerIndexInShader_Noise3d 24
+#define SamplerIndexInShader_CloudShadow 27
+#define SamplerIndexInShader_SceneRawDepth 26
+#define SamplerIndexInShader_SceneLinearDepth 23
+#define SamplerIndexInShader_SceneColor 25
+#define SamplerIndexInShader_GBufferNormal 30
+#define SamplerIndexInShader_GBufferSpecular 31
+#define SamplerIndexInShader_GBufferDiffuse 32
+#define SamplerIndexInShader_ScreeenSpaceReflection 33
+#define SamplerIndexInShader_Dither 34
+#define SamplerIndexInShader_DeformableHeight 22
+#define SamplerIndexInShader_Attribue 36
+#define SamplerIndexInShader_VolumeFog 35
+#define UboIndex_PerScene 0
+#define UboIndex_PerCamera 1
+#define UboIndex_PerShadow 2
+#define UboIndex_PerBatch 4
+#define UboIndex_PerMaterial 3
+#define PackedColorGainCount 10
+#define PackedTexcoordTransformCount 10
+#define PackedTangentTransformCount 4
+#define MaxInstanceVec4Count 448
+#define MaxCharacterCount 32
+#define ShaderFlag_NprEye 1
+#define ShaderFlag_NprHave2ndMap 2
+#define ShaderFlag_NprHair 4
+#define ShaderFlag_NprFaceParts 8
+#define ShaderFlag_Wind 16
+#define ShaderFlag_ModifyByEffect 32
+#define ShaderFlag_ReceiveShadow 64
+#define ShaderFlag_Water 128
+#define ShaderFlag_HaveUserEnvironmentMap 256
+#define ExtraShaderFlag_Dissolve 1
+#define ExtraShaderFlag_Transparency 2
+#define ExtraShaderFlag_UseUniqueShadow 4
+#define SHADOW_MAP_COUNT 3
+#define LocalShadowMapCapacity 8
+#define TILE_COUNT_H 32
+#define TILE_COUNT_V 18
+#define TILE_COUNT_D 2
+#define INV_SCREEN_WIDTH (0.00052083339)
+#define INV_SCREEN_HEIGHT (0.00092592601)
+#define USE_NSIGHT 0
+#define PI 3.1415926535f
+#define MIN_ROUGHNESS (0.079999995f)
+#define DissolveFadeLength (0.4000000f)
+#define ShadowMode_Auto 0
+#define ShadowMode_Resolved 1
+#define ShadowMode_Unresolved 2
+#define ShaderSubType0_Regular 0
+#define ShaderSubType0_CompositeVolumeFog 2
+#define ShaderSubType0_OutputTextureLod 1
+#define ENABLE_TEXTURE_COLOR_CORRECTION 0
+#define DEPTH_ONLY 0
+#define VERTEX_SHADER 0
+#define COMPUTE_SHADER 1
+#define SHADOW_MODE ShadowMode_Unresolved
+#define VOLUME_TEXTURE_FORMAT rgba16f
+#if !defined(DEPTH_ONLY)
+#error
+#endif//DEPTH_ONLY
+#if !defined(SHADOW_MODE)
+#error
+#endif//SHADOW_MODE
+#if VERTEX_SHADER && USE_DEFAULT_VS_CONSTANTS
+layout(location = 0) uniform vec4 g_transforms[6 + 4];//[0,2]=world,[3,5]=inv_world(not unscaled),[6,9]=projection*view*world
+#define WORLD_TRANSFORM_ROW(row_index) g_transforms[row_index]
+#define INV_WORLD_TRANSFORM_ROW(row_index) g_transforms[3 + row_index]
+#define PROJ_VIEW_WORLD_ROW(row_index) g_transforms[6 + row_index]
+#endif//VERTEX_SHADER && USE_DEFAULT_VS_CONSTANTS
+struct Light{
+	vec4 m_sphere;
+	vec4 m_color;
+	vec4 m_packed;//see renderer/impl/tiled_light.h
+};
+struct ReflectionProxy{//sampling_position=(aabb_min+aabb_max)*0.5f
+	vec4 m_aabb_min;//w=blend_distance
+	vec4 m_aabb_max;//w=npr_intensity
+	uint64_t m_cube_texture_handle;
+	uint64_t m_reserved;
+};
+#if !defined(MIN_ROUGHNESS)
+#error
+#endif//MIN_ROUGHNESS
+layout(std140, binding = UboIndex_PerScene) uniform PerScene{
+	vec4 g_parallel_light_colors[2];//xyz=color,w=specular_intensity_in_shadow, [0]=for_npr, [1]=for_pr
+	vec4 g_depth_fog_color[2];//xyz=color,w=height
+	vec4 g_depth_fog;//x=scale,y=offset,z=unused,w=curve
+	vec4 g_npr_tone[6];  // tone3 + identity3
+	vec4 g_cloud_shadow_texcoords[2];//[0].xy=offset, z=scale, w=density_offset, [1].x=thicknes_for_pr, [1].y=thicknes_for_npr, [1].z=1.f/render_target_width, [1].w=1.f/render_target_height
+	vec4 g_wind_perturbations[2];//[0].xy=offset, [0].zw=direction, [1].x=texcoord_scale, [1].y=perturbation_length, [1].z=fade_begin_depth, [1].w=fade_length
+	vec4 g_water_normal_map_fetcher;//xy=scale, zw=offset
+	vec4 g_light_modifier;//x=npr_point_light_scale, y=light_slice_depth, z=inv_resolution_scale, w=resolution_scale
+	vec4 g_dither_modifier;//x=1.f/(d_far-d_near), y=-d_near/(d_far-d_near), z=far_dither_ratio-1, w=height_dither_min
+	vec4 g_border_field; // x=min distance, y=max_distance, z=enable
+	vec4 g_character_positions[MaxCharacterCount];
+	float g_character_position_count;
+	float g_reflection_proxy_count;
+	uint64_t g_wind_perturbation_map_handle;
+	uint64_t g_water_normal_map_handle;
+	uint64_t g_compat_ptr_0_0;
+	uint64_t g_compat_ptr_0_1;
+	uint64_t g_planar_reflection_map_handle;
+	uint64_t g_unique_planar_reflection_map_handle;
+	uint64_t g_reserved_per_scene;
+	vec4 g_planar_reflection_plane;//減衰スケール済み。planer_intensity=1.f-abs(dot(g_planar_reflection_plane, world_position))
+	vec4 g_planar_reflection_tangent_;//w=unused
+	vec4 g_planar_reflection_binormal_;//w=unused
+	vec4 g_deformable_texcoord;//x=scale, yz=offset, w=attribute_scale
+	vec4 g_attribute_texcoord;//xy=scale, zw=offset
+	vec4 g_volume_fog_texcoord_from_worlds_in_cmn[3];
+	vec4 g_volume_fog_slice_from_linear_depth_in_cmn;//w=unused
+};
+layout(std430, binding = 30) buffer PtrBuf_0 { Light g_lights[]; };
+layout(std430, binding = 31) buffer PtrBuf_1 { ReflectionProxy g_reflection_proxies[]; };
+#define SPECULAR_INTENSITY_IN_SHADOW g_parallel_light_colors[0].w
+#define g_inverse_render_target_size g_cloud_shadow_texcoords[1].zw
+#define g_npr_point_light_scale g_light_modifier.x
+#define g_water_normal_uv_scale g_water_normal_map_fetcher.xy
+#define g_water_normal_uv_offset g_water_normal_map_fetcher.zw
+#define g_light_slice_depth g_light_modifier.y
+#define g_inv_resolution_scale g_light_modifier.z
+#define g_resolution_scale g_light_modifier.w
+#define g_height_dither_min g_dither_modifier.w
+#define g_planar_reflection_tangent g_planar_reflection_tangent_.xyz
+#define g_planar_reflection_binormal g_planar_reflection_binormal_.xyz
+#define g_deform_height_scale g_deformable_texcoord.w
+layout(std140, binding = UboIndex_PerCamera) uniform PerCamera{
+	vec4 g_projection_view[4];//projection_view
+	vec4 g_view_transform[3];//view
+	vec4 g_eye;//xyz=pos, w=tan(0.5*fov_y)
+	vec4 g_shadow_camera_row2;
+	vec4 g_depth_modifiers;//x=(n-f)/(nf), y=1/n, z=(n+f)/(n-f), w=1/f
+	vec4 g_depth_modifiers2;//x=n/(f-n), y=near_positive_min_y, z=n, w=1.f/tan(0.5*fov_y)
+	vec4 g_camera_traced_light;//xyz=direction, w=intensity
+	vec4 g_clip_plane_in_projection;
+};
+#define g_tan_half_fov_y g_eye.w
+#define g_near_positive_min_y g_depth_modifiers2.y
+#define g_depth_near_ g_depth_modifiers2.z
+#define g_inv_tan_half_fov_y g_depth_modifiers2.w
+layout(binding = UboIndex_PerShadow) uniform PerShadow{
+	vec4 g_plane_distances;//x=plane1, y=plane2, z=plane3, w=half_blending_distance//plane0=0なのは自明なのでない。
+	vec4 g_shadow_fetches[3 * SHADOW_MAP_COUNT];
+	vec4 g_parallel_light_dir;//xyz=direction, w=max_glossiness//影の種類により光源向きも変えたいのでPerShadow。
+	vec4 g_chara_extra_light_pos;//xyz=position, w=chara_extra_shadow_rate_offset, w<=0であること。
+	vec4 g_chara_extra_light_dir;//xyz=direction, w=intensity, (w<0)で副光源なし。
+	vec4 g_ao_intensities;//x=for_npr, y=for_stage, z=for_grass, w=output_lod_sampler_index(for debug)
+	uint64_t g_screen_shadow_map_handle;
+	uvec2 g_cascaded_shadow_map_handle_0;uvec2 g_cascaded_shadow_map_handle_1;uvec2 g_cascaded_shadow_map_handle_2;
+	uint64_t g_ssao_map_handle;
+	uint64_t g_local_shadow_map_handle;
+	vec4 g_local_shadow_fetches[4 * LocalShadowMapCapacity];
+	uint64_t g_unique_shadow_map_handle;
+	uint64_t g_reserved_per_shadow;
+	vec4 g_unique_shadow_fetcher[3];
+};
+#define g_ao_intensity_for_npr g_ao_intensities.x
+#define g_ao_intensity_for_stage g_ao_intensities.y
+#define g_ao_intensity_for_grass g_ao_intensities.z
+#define OUTPUT_LOD_SAMPLER_INDEX g_ao_intensities.w
+#define g_parallel_light_min_glossiness g_parallel_light_dir.w
+#define DIFFUSE0_COLOR_GAIN g_color_gains[0].rgb
+#define DIFFUSE1_COLOR_GAIN g_color_gains[1].rgb
+#define DIFFUSE2_COLOR_GAIN g_color_gains[2].rgb
+#define DIFFUSE3_COLOR_GAIN g_color_gains[3].rgb
+#define BAKED_LIGHT_COLOR_GAIN g_color_gains[4].rgb
+#define LAYERED_DIFFUSE_COLOR_GAIN g_color_gains[5].rgba
+#define SPECULAR0_COLOR_GAIN g_color_gains[6].rgba
+#define SPECULAR1_COLOR_GAIN g_color_gains[7].rgba
+#define SPECULAR2_COLOR_GAIN g_color_gains[8].rgba
+#define SPECULAR3_COLOR_GAIN g_color_gains[9].rgba
+#define OPACITY0_GAIN g_color_gains[0].a
+#define OPACITY1_GAIN g_color_gains[1].a
+#define BAKED_SHADOW_GAIN g_color_gains[2].a
+#define HEIGHT_SCALE g_color_gains[3].a
+#define OVERDRAW_MASK g_npr_anisotropic_param.z
+layout(binding = SAMPLER_INDEX_ENVIRONMENT_CUBE) uniform samplerCube g_env_sampler;//ambienet成分はこれをそのまま使う。
+layout(binding = SamplerIndexInShader_CloudShadow) uniform sampler2D g_cloud_shadow_sampler;
+layout(binding = SamplerIndexInShader_SceneColor) uniform sampler2D g_scene_color_sampler;//hairパスのみ入力される。
+#if (0 == DEPTH_ONLY)
+layout(binding = SamplerIndexInShader_SceneRawDepth) uniform sampler2D g_scene_raw_depth_sampler;//半透明パスのみ入力される。//hair描画時にはhairのzは書き込まれていない。
+layout(binding = SamplerIndexInShader_SceneLinearDepth) uniform sampler2D g_scene_linear_depth_sampler;//hairのzが描画済み。
+#endif//DEPTH_ONLY
+layout(binding = SamplerIndexInShader_Noise3d) uniform sampler3D g_noise_sampler;
+#if USE_TINY_GBUFFER
+layout(binding = SamplerIndexInShader_GBufferNormal) uniform sampler2D g_gbuffer_normal_map_sampler;
+layout(binding = SamplerIndexInShader_GBufferSpecular) uniform sampler2D g_gbuffer_specular_map_sampler;
+layout(binding = SamplerIndexInShader_GBufferDiffuse) uniform sampler2D g_gbuffer_diffuse_map_sampler;
+layout(binding = SamplerIndexInShader_ScreeenSpaceReflection) uniform sampler2D g_sslr_map_sampler;
+#endif//USE_TINY_GBUFFER
+layout(binding = SamplerIndexInShader_Dither) uniform sampler2D g_dither_sampler;
+layout(binding = SamplerIndexInShader_DeformableHeight) uniform sampler2D g_deformable_height_sampler;
+layout(binding = SamplerIndexInShader_Attribue) uniform sampler2D g_attribute_sampler;
+#if (0 == DEPTH_ONLY)
+//タイル化されたライト。
+struct Tile{
+	int m_count;
+	int m_index_offset;
+};
+layout(binding = SamplerIndexInShader_TiledLightTiles) uniform isamplerBuffer g_tiles;
+layout(binding = SamplerIndexInShader_TiledLightIndices) uniform isamplerBuffer g_light_indices;
+#if VERTEX_SHADER || TESSELLATION_SHADER
+float calculate_depth_fog_intensity( vec3 position){
+	return clamp(length(g_eye.xyz - position) * g_depth_fog.x + g_depth_fog.y, 0.f, 1.f);
+}
+#else//VERTEX_SHADER
+#if COMPUTE_SHADER
+#else//COMPUTE_SHADER
+int calculate_tile_index(){
+	vec2 p = gl_FragCoord.xy;
+	p *= g_inv_resolution_scale;
+	p.x *= float(TILE_COUNT_H) * INV_SCREEN_WIDTH;
+	p.y *= float(TILE_COUNT_V) * INV_SCREEN_HEIGHT;
+	ivec2 ip = ivec2(p);
+	int tile_idx = min(int(ip.x + ip.y * TILE_COUNT_H), TILE_COUNT_H * TILE_COUNT_V - 1);
+#if (2 == TILE_COUNT_D)
+	if(g_light_slice_depth * gl_FragCoord.w < 1.f){//gl_FragCoord.w=1.f/-view_z
+		tile_idx += TILE_COUNT_H * TILE_COUNT_V;
+	}
+#endif//TILE_COUNT_D
+	return tile_idx;
+}
+void fetch_tile(out Tile out_tile){
+	int tile_idx = calculate_tile_index();
+	ivec2 tile = texelFetch(g_tiles, tile_idx).xy;
+	out_tile.m_count = tile.x;
+	out_tile.m_index_offset = tile.y;
+}
+#endif//COMPUTE_SHADER
+int calculate_tile_index( vec4 projection){
+	if(projection.w < 0.f){//projection.w=-view_z
+		return -1;
+	}
+	vec2 p = projection.xy / projection.w;
+	p = clamp(p, vec2(-1.f), vec2(1.f));
+	p *= 0.5f;
+	p += vec2(0.5f);//[0,1]
+	//p *= inv_resolution_scale;//inv_resolution_scaleが必要ならば、引数として渡して、ここで乗算すべし。
+	p.x *= float(TILE_COUNT_H);
+	p.y *= float(TILE_COUNT_V);
+	ivec2 ip = ivec2(p);
+	int tile_idx = min(int(ip.x + ip.y * TILE_COUNT_H), TILE_COUNT_H * TILE_COUNT_V - 1);
+#if (2 == TILE_COUNT_D)
+	if(g_light_slice_depth < projection.w){//projection.w=-view_z
+		tile_idx += TILE_COUNT_H * TILE_COUNT_V;
+	}
+#endif//TILE_COUNT_D
+	return tile_idx;
+}
+void fetch_tile(out Tile out_tile,  vec4 projection){
+	int tile_idx = calculate_tile_index(projection);
+	if(tile_idx < 0){
+		out_tile.m_count = 0;
+		out_tile.m_index_offset = 0;
+	}else{
+		ivec2 tile = texelFetch(g_tiles, tile_idx).xy;
+		out_tile.m_count = tile.x;
+		out_tile.m_index_offset = tile.y;
+	}
+}
+void fetch_light(
+	out Light out_light,
+	in  int sequencial_light_index){
+	int lgt_idx = texelFetch(g_light_indices, sequencial_light_index).x;
+	out_light = g_lights[lgt_idx];
+}
+#endif//VERTEX_SHADER
+#endif//DEPTH_ONLY
+// depth & height fog
+// 本当はdepthとheightを個別にブレンドした方がいいのだが、
+// 輪郭線の濃度決定が複雑になるので深度フォグに対する高さグラデーションという形式をとっている
+vec3 calculate_depth_fog_color( in  float position_y ) {
+	float fog_curve = clamp( (position_y - g_depth_fog_color[0].w) * g_depth_fog_color[1].w, 0.0f, 1.0f );
+	fog_curve = sin( fog_curve * 3.14159265359f * 0.5f ); // linearだとsrgbに戻す時にカーブがかかるので適当なカーブに変換する
+	return mix( g_depth_fog_color[0].rgb, g_depth_fog_color[1].rgb, fog_curve );
+}
+float calculate_depth_fog_ratio( float depth_fog_intensity){
+	return 1.f - pow(1.f - depth_fog_intensity, g_depth_fog.w + 1.f);
+}
+void blend_fog(inout vec3 color,  float depth_fog_intensity,  float position_y){
+	vec3 fog_color = calculate_depth_fog_color(position_y);
+	color = mix(color, fog_color, calculate_depth_fog_ratio(depth_fog_intensity));
+}
+// ITU-R BT.601
+void to_ycbcr_601( out vec3 ybr, in vec3 rgb ) {
+	vec3  _y_coef_601 = vec3(     0.2989,     0.5866,     0.1145 );
+	vec3 _cb_coef_601 = vec3( -0.1687747, -0.3312253,        0.5 );
+	vec3 _cr_coef_601 = vec3(        0.5, -0.4183426, -0.0816574 );
+	ybr.r = dot( rgb, _cr_coef_601 );
+	ybr.g = dot( rgb, _y_coef_601 );
+	ybr.b = dot( rgb, _cb_coef_601 );
+}
+void to_rgb_601( out vec3 rgb, in vec3 ybr ) {
+	vec3 _red_coef_601 = vec3(    1.4022, 1.0,       0.0 );
+	vec3 _grn_coef_601 = vec3( -0.714486, 1.0, -0.345686 );
+	vec3 _blu_coef_601 = vec3(       0.0, 1.0,    1.7710 );
+	rgb.r = dot( ybr, _red_coef_601 );
+	rgb.g = dot( ybr, _grn_coef_601 );
+	rgb.b = dot( ybr, _blu_coef_601 );
+}
+#if (0 == VERTEX_SHADER) && (0 == DEPTH_ONLY) && (0 == TESSELLATION_SHADER) && (0 == COMPUTE_SHADER)
+float calculate_local_shadow(in  int shadow_index, in  vec3 world_position){//[0,1]を返す。下限をMIN_SHADOW_INTENSITYでクランプしてから使うこと。
+	vec4 wp = vec4(world_position, 1.f);
+	const int shadow_index4 = shadow_index * 4;
+	vec4 shadow_uv;
+	shadow_uv.x = dot(g_local_shadow_fetches[shadow_index4 + 0], wp);
+	shadow_uv.y = dot(g_local_shadow_fetches[shadow_index4 + 1], wp);
+	shadow_uv.z = dot(g_local_shadow_fetches[shadow_index4 + 2], wp);
+	shadow_uv.w = dot(g_local_shadow_fetches[shadow_index4 + 3], wp);
+	shadow_uv.xyz /= shadow_uv.w;
+	float r = 0.f;
+	float offset = 1.f / 1024.f;
+	r += texture(sampler2DArrayShadow(unpackUint2x32(g_local_shadow_map_handle)), vec4(shadow_uv.xy, float(shadow_index), shadow_uv.z)).r;
+	r += texture(sampler2DArrayShadow(unpackUint2x32(g_local_shadow_map_handle)), vec4(shadow_uv.xy + vec2(-offset, 0.f), float(shadow_index), shadow_uv.z)).r;
+	r += texture(sampler2DArrayShadow(unpackUint2x32(g_local_shadow_map_handle)), vec4(shadow_uv.xy + vec2(0.f, -offset), float(shadow_index), shadow_uv.z)).r;
+	r += texture(sampler2DArrayShadow(unpackUint2x32(g_local_shadow_map_handle)), vec4(shadow_uv.xy + vec2(-offset, -offset), float(shadow_index), shadow_uv.z)).r;
+	return r * 0.25f;
+}
+float calcualte_self_shadow_split(
+	in  int index,
+	in  vec4 texcoord,
+	in  float texcoord_offset){
+	float r = 0.f;
+	float offset = texcoord_offset;//2ピクセル幅で良い。sampler2DShadowで2x2は解決済み。
+	r += texture(sampler2DShadow((index <= 0 ? g_cascaded_shadow_map_handle_0 : (index == 1 ? g_cascaded_shadow_map_handle_1 : g_cascaded_shadow_map_handle_2))), texcoord.xyz).r;//シングルタップだと厳しい。。
+	r += texture(sampler2DShadow((index <= 0 ? g_cascaded_shadow_map_handle_0 : (index == 1 ? g_cascaded_shadow_map_handle_1 : g_cascaded_shadow_map_handle_2))), texcoord.xyz + vec3(-offset, 0.f, 0.f)).r;
+	r += texture(sampler2DShadow((index <= 0 ? g_cascaded_shadow_map_handle_0 : (index == 1 ? g_cascaded_shadow_map_handle_1 : g_cascaded_shadow_map_handle_2))), texcoord.xyz + vec3(0.f, -offset, 0.f)).r;
+	r += texture(sampler2DShadow((index <= 0 ? g_cascaded_shadow_map_handle_0 : (index == 1 ? g_cascaded_shadow_map_handle_1 : g_cascaded_shadow_map_handle_2))), texcoord.xyz + vec3(-offset, -offset, 0.f)).r;
+	return r * 0.25f;
+}
+float calculate_self_shadow_full_range_from_split(//影で0, 日向で1を返す。
+	 float view_distance,
+	 vec4 shadow_texcoord0,
+	 vec4 shadow_texcoord1,
+	 vec4 shadow_texcoord2){
+	if(view_distance < g_plane_distances.x){//球での分離のほうが良いけど。
+		return calcualte_self_shadow_split(0, shadow_texcoord0, 2.f / 2048.f);
+	}else if(view_distance < g_plane_distances.y){
+		return calcualte_self_shadow_split(1, shadow_texcoord1, 2.f / 2048.f);
+	}else if(view_distance < g_plane_distances.z){
+		return calcualte_self_shadow_split(2, shadow_texcoord2, 2.f / 2048.f);
+	}
+	return 1.f;
+}
+float calculate_self_shadow_full_range(//影で0, 日向で1を返す。
+	 float view_distance,
+	 vec4 shadow_texcoord0,
+	 vec4 shadow_texcoord1,
+	 vec4 shadow_texcoord2,
+	 uint extra_shader_flags){
+	//スクリーンスペースの影が使えなければ(半透明, 髪越しのポリゴン)、PCF*4にfallback。
+	//現在のzが、zバッファに書き込まれている値よりも小さければ、使えない。等しければ使える。
+	//const float raw_depth = textureLod(g_scene_raw_depth_sampler, gl_FragCoord.xy * g_inverse_render_target_size, 0.f).r;
+	//near=1, far=0
+	//処理しているピクセルよりも既存のzが奥ならば(=処理しているピクセルのzが塗られていない。つまり半透明。)、raw_depth<gl_FragCoord.z。
+#if (SHADOW_MODE == ShadowMode_Resolved)
+	return texture(sampler2D(unpackUint2x32(g_screen_shadow_map_handle)), gl_FragCoord.xy * vec2(INV_SCREEN_WIDTH, INV_SCREEN_HEIGHT), 0).x;
+#elif (SHADOW_MODE == ShadowMode_Unresolved)
+	return calculate_self_shadow_full_range_from_split(view_distance, shadow_texcoord0, shadow_texcoord1, shadow_texcoord2);
+#else//ShadowMode_Auto
+	if(0 == (extra_shader_flags & ExtraShaderFlag_Transparency)){
+		return texture(sampler2D(unpackUint2x32(g_screen_shadow_map_handle)), gl_FragCoord.xy * vec2(INV_SCREEN_WIDTH, INV_SCREEN_HEIGHT), 0).x;
+	}else{
+		return calculate_self_shadow_full_range_from_split(view_distance, shadow_texcoord0, shadow_texcoord1, shadow_texcoord2);
+	}
+#endif//SUPPORT_UNRESOLVED_SHADOW
+}
+float calculate_self_shadow(//影で0, 日向で1を返す。
+	 float view_distance,
+	 vec4 shadow_texcoord0,
+	 vec4 shadow_texcoord1,
+	 vec4 shadow_texcoord2,
+	 uint extra_shader_flags){
+	float s = calculate_self_shadow_full_range(view_distance, shadow_texcoord0, shadow_texcoord1, shadow_texcoord2, extra_shader_flags);
+	return s;
+}
+float calculate_linear_depth_from_raw_depth( vec2 uv){//hairの書き込まれていないzを使う場合に使用すること。そうでなければg_scene_linear_depth_samplerを使うこと。//奥が正。
+	const float raw_depth = textureLod(g_scene_raw_depth_sampler, uv, 0.f).r;
+	return -1.f / (g_depth_modifiers.x * raw_depth - g_depth_modifiers.w);
+}
+float calculate_ssao( float intensity){
+	return mix(1.f, textureLod(sampler2D(unpackUint2x32(g_ssao_map_handle)), gl_FragCoord.xy * g_inverse_render_target_size, 0.f).x, intensity);//dummyテクスチャを使うために、texelFetchは使わない。
+}
+#endif//VERTEX_SHADER
+float calculate_cloud_shadow_( vec3 world_position){//0=影,1=日向。
+	float s = textureLod(g_cloud_shadow_sampler, g_cloud_shadow_texcoords[0].xy + vec2(world_position.xz - g_parallel_light_dir.xz * world_position.y) * g_cloud_shadow_texcoords[0].z, 0.f).r;//[-1,1]//z=0.0025f
+	s += g_cloud_shadow_texcoords[0].w;//大きいほど削れる。
+	s = clamp(s, 0.f, 1.f);
+	s = pow(s, 2.2f);//linearだと調整しにくい。srgbとして使う。
+	return s;
+}
+float calculate_cloud_shadow( vec3 world_position){
+	const float thickness = g_cloud_shadow_texcoords[1].x;
+	return calculate_cloud_shadow_(world_position) * thickness + (1.f - thickness);
+}
+float calculate_cloud_shadow_npr( vec3 world_position){
+	const float thickness = g_cloud_shadow_texcoords[1].y;
+	return calculate_cloud_shadow_(world_position) * thickness + (1.f - thickness);
+}
+#if (SHADER_SUB_TYPE0 == ShaderSubType0_OutputTextureLod)
+//for debug
+vec4 color_from_lod( float lod){
+	vec3 pallets[4] = {
+		vec3(0.f, 0.f, 1.f),
+		vec3(0.f, 1.f, 0.f),
+		vec3(1.f, 1.f, 0.f),
+        vec3(1.f, 0.f, 0.f),
+	};
+	int p0 = int(lod);
+	if(3 <= p0){
+		return vec4(pallets[3], 1.f);
+	}else{
+		int p1 = p0 + 1;
+		float r = lod - p0;
+		return vec4(mix(pallets[p0], pallets[p1], r), 1.f);
+	}
+}
+#define OUTPUT_TEXTURE_LOD(sampler_index, texcoord){\
+	if(sampler_index == int(OUTPUT_LOD_SAMPLER_INDEX)){\
+		float lod = textureQueryLod(sampler2D(unpackUint2x32(g_map_handles[sampler_index])), texcoord).x;\
+		result.rgba = color_from_lod(lod);\
+		return;\
+	}\
+}
+#define OUTPUT_TEXTURE_LOD_DIRECTLY(sampler_index, lod){\
+	if(sampler_index == int(OUTPUT_LOD_SAMPLER_INDEX)){\
+		result.rgba = color_from_lod(lod);\
+		return;\
+	}\
+}
+#else//ShaderSubType0_OutputTextureLod
+#define OUTPUT_TEXTURE_LOD(sampler_index, texcoord)
+#define OUTPUT_TEXTURE_LOD_DIRECTLY(sampler_index, lod)
+#endif//ShaderSubType0_OutputTextureLod
+float calculate_corrected_reflection_inner(//重みを返す。見つからない場合は0.fを返す。//取り込みAABBの外側への漏れだしを禁止した版。
+	out vec3 out_direction,//正規化されていない。
+	 vec3 ray_origin,
+	 vec3 ray_direction,
+	 vec3 aabb_min,
+	 vec3 aabb_max,
+	 vec3 sampling_position,
+	 float blend_distance){//AABBの内側で補間する。
+	//aabb内に始点がなければ交差しない。
+	if(	any(lessThan(ray_origin, aabb_min)) ||
+		any(lessThan(aabb_max, ray_origin))){
+		return 0.f;
+	}
+	vec3 a = (aabb_max - ray_origin) / ray_direction;
+	vec3 b = (aabb_min - ray_origin) / ray_direction;
+	vec3 t_forward = max(a, b);//起点がAABB内にあれば成分ごとにa, bのいずれかが正で, もうひとつ負である。正を選択。//起点がAABB外であれば、AABBの無限平面との交点のうち最遠方のものが選択されるだけ。
+	float t = min(min(t_forward.x, t_forward.y), t_forward.z);//衝突までの最小の時間を計算。
+	vec3 p = ray_origin + ray_direction * t;
+	out_direction = p - sampling_position;
+	out_direction.x *= 1.f / (aabb_max.x - aabb_min.x);//@todo	最適化
+	out_direction.y *= 1.f / (aabb_max.y - aabb_min.y);
+	out_direction.z *= 1.f / (aabb_max.z - aabb_min.z);
+	float w = 1.f;
+	if(0.f < blend_distance){//AABBからの距離に応じて重みを決定。
+		vec3 a = ray_origin - (aabb_max - vec3(blend_distance));
+		vec3 b = (aabb_min + vec3(blend_distance)) - ray_origin;
+		vec3 t_min = max(a, b);
+		float t_blend = max(max(t_min.x, t_min.y), t_min.z);
+		w = 1.f - t_blend / blend_distance;
+	}
+	return w;
+}
+vec3 fetch_environment_reflection( vec3 position,  vec3 direction,  float lod,  float npr_intensity,  int shader_flags){
+	const uint c = uint(g_reflection_proxy_count);
+	if(	(0 == c) ||
+		(0 != (ShaderFlag_HaveUserEnvironmentMap & shader_flags))){
+		return textureLod(g_env_sampler, direction, lod).rgb;
+	}
+	float w = 0.f;
+	vec3 env = vec3(0.f);
+	for(int i = 0; i < c; ++ i){//deferredにしたほうが良いかも。重い。
+		vec3 r;
+		vec3 aabb_min = g_reflection_proxies[i].m_aabb_min.xyz;
+		vec3 aabb_max = g_reflection_proxies[i].m_aabb_max.xyz;
+		vec3 sampling_position = (aabb_min + aabb_max) * 0.5f;
+		float wt = calculate_corrected_reflection_inner(
+			r, position, direction, aabb_min, aabb_max, sampling_position, g_reflection_proxies[i].m_aabb_min.w);
+		wt *= mix(1.f, g_reflection_proxies[i].m_aabb_max.w, npr_intensity);
+		if(0.f < wt){
+			env += textureLod(samplerCube(unpackUint2x32(g_reflection_proxies[i].m_cube_texture_handle)), r, lod).rgb * wt;
+			w += wt;
+			if(1.f <= w){
+				return env / w;//打ち切り。
+			}
+		}
+	}
+	env += textureLod(g_env_sampler, direction, lod).rgb * (1.f - w);//不足分をグローバルなマップで補充。
+	return env;
+}
+//ライティング計算。
+#define LightFlag_Spot (1 << 16)
+const float s_fresnel_modifier = 0.25f;//デザインさんの要望。
+float visibility_implicit(in float nl, in float ne, in float specular_power){
+	return 1.f;
+}
+float visibility_shlick(in float nl, in float ne, in float specular_power){//ジオメトリ項とBRDFの分母を組み合わせたもの。これをvisiblity項と呼ぶ。
+	float k = 2.f / sqrt(3.1415926535f * (specular_power + 2.f));
+	float ik = 1.f - k;
+	return 1.f / ((nl * ik + k) * (ne * ik + k));
+}
+float d_ggx( float roughness,  float nh){
+	float a = roughness * roughness;
+	float aa = a * a;
+	float t = nh * nh * (aa - 1.f) + 1.f;
+	return aa / (PI * t * t);
+}
+float vis_smith( float roughness,  float nv,  float nl){
+	float a = roughness * roughness;
+	float aa = a * a;
+	return 1.f / ((nv + sqrt(nv * (nv - nv * aa) + aa)) * (nl + sqrt(nl * (nl - nl * aa) + aa)));
+}
+float vis_smith_approx( float roughness,  float nv,  float nl){
+	float a = roughness * roughness;
+	float v_v = nv * (nv * (1.f - a) + a);
+	float v_l = nl * (nl * (1.f - a) + a);
+	return 0.5f / (v_v + v_l + 0.000001f);
+	//return 0.5f / (v_v + v_l);//0<aでもnl=0&&nv=0でゼロ除算!
+}
+vec3 f_schlick( vec3 specular_color,  float vh){
+	float t = 1.f - vh;
+	float fc = t * t;
+	fc *= fc;
+	fc *= t;
+	return min(50.f * specular_color.g, 1.f) * fc + (1.f - fc) * specular_color;//2%未満は物理的にあり得ないらしい。
+}
+void calculate_direct_light_ggx(
+	out float out_diffuse,
+	out vec3 out_specular,
+	in  vec3 l,
+	in  vec3 specular_color,
+	in  vec3 e,
+	in  vec3 n,
+	in  float ne,//clamp(dot(n, e), 0.f, 1.f);
+	in  float roughness,
+	in  float min_diffuse_intensity){
+	const vec3 v = e;
+	const vec3 h = normalize(l + v);
+	const float nl = clamp(dot(n, l), 0.f, 1.f);
+	const float nv = ne;
+	const float nh = clamp(dot(n, h), 0.f, 1.f);
+	const float vh = clamp(dot(v, h), 0.f, 1.f);
+	const float specular_d = d_ggx(roughness, nh);
+	const float specular_vis = vis_smith_approx(roughness, nv, nl);//specular vis(=G/(4.f*nl*nv))
+	const vec3 specular_f = f_schlick(specular_color, vh);
+	vec3 specular = specular_f * specular_d * specular_vis;//specular_fでspecular_colorを乗算済み。
+	out_diffuse = max(nl / PI, min_diffuse_intensity);
+	out_specular = specular * nl;
+}
+void calculate_direct_light_half_lambert_ggx_(
+	out float out_diffuse,
+	out vec3 out_specular,
+	in  vec3 l,
+	in  vec3 specular_color,
+	in  vec3 e,
+	in  vec3 n,
+	in  float roughness,
+	in  float min_diffuse_intensity,
+	in  float lambert_ratio){
+	const vec3 v = e;	
+	const vec3 h = normalize(l + v);
+	const float nl = clamp(dot(n, l), 0.f, 1.f);
+	const float nv = clamp(dot(n, v), 0.f, 1.f);
+	const float nh = clamp(dot(n, h), 0.f, 1.f);
+	const float vh = clamp(dot(v, h), 0.f, 1.f);
+	const float specular_d = d_ggx(roughness, nh);
+	const float specular_vis = vis_smith_approx(roughness, nv, nl);//specular vis(=G/(4.f*nl*nv))
+	const vec3 specular_f = f_schlick(specular_color, vh);
+	vec3 specular = specular_f * specular_d * specular_vis;//specular_fでspecular_colorを乗算済み。
+	out_diffuse = max((nl * lambert_ratio + (1.f - lambert_ratio)) / PI, min_diffuse_intensity);
+	out_specular = specular * nl;
+}
+float calculate_point_light_falloff( in vec3 distance_vec, in float radius ) {
+	//減衰係数を計算。UE4方式。
+	vec3 l = distance_vec;
+	float ll = dot(l, l);
+	float rr = radius * radius;
+	float t = ll / rr;
+	t *= t;//=(l/r)^4
+	t = clamp(1.f - t, 0.f, 1.f);
+	float falloff = t * t / (ll + 1.f);
+	return falloff;
+}
+float calculate_sphere_light_falloff( in vec3 distance_vec, in float max_radius, in float min_radius ) {
+	// 線形距離の比率を求める
+	vec3 l = distance_vec;
+	float ll = dot( l, l );
+	ll = sqrt(ll);
+	float rr = max_radius;
+	float t = (ll) / rr;
+	// 中心からpeakが1になり、peakからmax radiusまでリニアに0へ収束させる
+	float peak =  min_radius / rr;
+	t = (1.0 - t);
+	t = clamp(t, 0.f, 1.f);
+	t /= max(1.0f - peak, 1e-4);
+	// UE4と同等の減衰カーブを得るには、(1-(1-t)^4)^2にする
+	t = clamp(1.0f - t, 0.f, 1.f);
+	t *= t;
+	t *= t;
+	t = 1.0f - t;
+	// 除算後も中心箇所～areaまでが1になるようする
+	float falloff =  t * t / (max( (ll*ll ) - (min_radius*min_radius), 0.0f) + 1.f);
+	return falloff;
+}
+float calculate_spot_attenuation(
+	in  vec4 light_packed,
+	in  vec3 l){
+	uint flags = floatBitsToUint(light_packed.x);
+	if(0 == (flags & LightFlag_Spot)){
+		return 1.f;//点光源。減衰なし。
+	}
+	//スポットライト。開き角で減衰。
+	vec3 cone_direction;
+	cone_direction.xy = unpackHalf2x16(floatBitsToUint(light_packed.y));
+	vec2 t = unpackHalf2x16(floatBitsToUint(light_packed.z));
+	cone_direction.z = t.x;
+	const float outer_aperture_cos = t.y;
+	float attenuation = -dot(l, cone_direction);//コーンの前方で正。
+	if(attenuation < outer_aperture_cos){//コーンの外側。
+		attenuation = 0.f;
+	}else{
+		const float inner_aperture_cos = unpackHalf2x16(floatBitsToUint(light_packed.w)).x;
+		if(outer_aperture_cos < inner_aperture_cos){
+			attenuation *= min(1.f, (attenuation - outer_aperture_cos) / (inner_aperture_cos - outer_aperture_cos));
+		}
+	}
+	return attenuation;
+}
+void calculate_direct_sphere_light_ggx(
+	out float out_diffuse,
+	out vec3 out_specular,
+	in  Light light,
+	in  vec3 specular_color,
+	in  vec3 e,
+	in  vec3 n,
+	in  float ne,//clamp(dot(n, e), 0.f, 1.f);
+	in  vec3 position,
+	in  float roughness_,
+	in  float min_diffuse_intensity){
+	float min_radius = light.m_color.w; // スフィア半径
+	float max_radius = light.m_sphere.w; // ライト半径
+	vec3 l = light.m_sphere.xyz - position;
+	float falloff_sp = calculate_point_light_falloff( l, max_radius ); // スペキュラはタイルからはみ出さない用にするだけ
+	float falloff = calculate_sphere_light_falloff( l, max_radius, min_radius );
+	const float min_roughness = (floatBitsToUint(light.m_packed.x) >> 24) / 255.f;
+	const float roughness = max(roughness_, min_roughness);
+	l = normalize(l);
+#if 01
+	const float spot_attenuation = calculate_spot_attenuation(light.m_packed, l);//sphere lightの計算でlが変更されるので先に。
+	falloff *= spot_attenuation;
+	falloff_sp *= spot_attenuation;
+#endif
+#if 01
+	float sphere_radius = light.m_color.w;
+	if(0.f < sphere_radius){//sphere light
+		vec3 t = light.m_sphere.xyz - position;
+		vec3 r = -e + 2.f * dot(n, e) * n;
+		vec3 center_to_ray = dot(t, r) * r - t;
+		vec3 closest_point = light.m_sphere.xyz + center_to_ray * min(sphere_radius / length(center_to_ray), 1.f);//反射ベクトルに最も近い、光源球上の点。
+		l = closest_point.xyz - position;
+		//エネルギー保存。
+		float m = roughness * roughness;
+		float s = m / (m + 0.5f * (sphere_radius / length(light.m_sphere.xyz - position)));
+		falloff_sp *= s * s;
+		l = normalize(l);
+	}
+#endif
+	calculate_direct_light_ggx(out_diffuse, out_specular, l, specular_color, e, n, ne, roughness, min_diffuse_intensity);
+	out_diffuse *= falloff;
+	out_specular *= falloff_sp;
+}
+void calculate_direct_point_light_ggx(
+	out float out_diffuse,
+	out vec3 out_specular,
+	in  Light light,
+	in  vec3 specular_color,
+	in  vec3 e,
+	in  vec3 n,
+	in  float ne,//clamp(dot(n, e), 0.f, 1.f);
+	in  vec3 position,
+	in  float roughness,
+	in  float min_diffuse_intensity){
+	calculate_direct_sphere_light_ggx(out_diffuse, out_specular, light, specular_color, e, n, ne, position, roughness, min_diffuse_intensity);
+}
+void calculate_direct_point_light_half_lambert_ggx_(
+	out float out_diffuse,
+	out vec3 out_specular,
+	in  Light light,
+	in  vec3 specular_color,
+	in  vec3 e,
+	in  vec3 n,
+	in  vec3 position,
+	in  float roughness,
+	in  float min_diffuse_intensity,
+	in  float lambert_ratio){
+	float min_radius = light.m_color.w;
+	float max_radius = light.m_sphere.w;
+	vec3 l = light.m_sphere.xyz - position;
+	float falloff_sp = calculate_point_light_falloff(l, max_radius);
+	float falloff = calculate_sphere_light_falloff(l, max_radius, min_radius);
+	l = normalize(l);
+#if 01
+	const float spot_attenuation = calculate_spot_attenuation(light.m_packed, l);//sphere lightの計算でlが変更されるので先に。
+	falloff *= spot_attenuation;
+	falloff_sp *= spot_attenuation;
+#endif
+	calculate_direct_light_half_lambert_ggx_(out_diffuse, out_specular, l, specular_color, e, n, roughness, min_diffuse_intensity, lambert_ratio);
+	out_diffuse *= falloff;
+	out_specular *= falloff_sp;
+}
+#if VULKAN
+#define UNIFORM_LAYOUT_SET set = 0,
+#define TEXTURE_LAYOUT_SET set = 1,
+#else//VULKAN
+#define UNIFORM_LAYOUT_SET
+#define TEXTURE_LAYOUT_SET
+layout(location = 0) uniform vec4 g_constants[14];
+#endif//VULKAN
+#define g_linear_depth_from_slice g_constants[0]
+#define g_world_from_texcoord_row0 g_constants[1]
+#define g_world_from_texcoord_row1 g_constants[2]
+#define g_world_from_texcoord_row2 g_constants[3]
+#define g_eye_position g_constants[4].xyz
+#define g_exp_scale g_constants[4].w
+#define g_noise_texcoord_offset0 g_constants[5].xy
+#define g_noise_texcoord_offset1 g_constants[5].zw
+#define g_scattering_coef g_constants[6].x
+#define g_absorption_coef g_constants[6].y
+#define g_anisotropy_directional g_constants[6].z
+#define g_anisotropy_point g_constants[6].w
+#define g_view_row2 g_constants[7]
+#define g_height_scale g_constants[8].x
+#define g_noise_texcoord_scale g_constants[8].y
+#define g_scattering_abosorption_ratio g_constants[8].z
+#define g_directional_light_color g_constants[9].xyz
+#define g_point_light_intensity_scale g_constants[9].w
+#define g_fog_albedo g_constants[10].xyz
+#define g_ambient_light_intensity g_constants[10].w
+#define g_density_scale g_constants[11].x
+#define g_density_offset g_constants[11].y
+#define g_depth_fog_scale g_constants[11].z
+#define g_depth_fog_offset g_constants[11].w
+#define g_depth_fog_color g_constants[12]
+#define g_density_power g_constants[8].w
+#define g_depth_density_scale g_constants[13].x
+#define g_depth_density_offset g_constants[13].y
+layout(TEXTURE_LAYOUT_SET binding = 0, VOLUME_TEXTURE_FORMAT) writeonly uniform image3D g_output;
+layout(TEXTURE_LAYOUT_SET binding = 0) uniform sampler3D g_volume_noise_sampler;
+layout(TEXTURE_LAYOUT_SET binding = 1) uniform sampler2D g_shadow_samplers[3];
+float calculate_phase(
+	 float l_dot_e,
+	 float anisotropy){//小さいほうが光が広がる。
+	//const float g = g_anisotropy;//0.7f;//小さいほうが光が広がる。
+	const float g = anisotropy;
+	return (1.f - g) * (1.f - g) / (4.f * 3.1415926535f * pow(1.f + g * g - 2.f * g * l_dot_e, 3.f / 2.f));
+}
+float luminance( vec3 color){
+	return dot(color, vec3(0.3f, 0.59f, 0.11f));
+}
+void main(){
+	const float height_scale = g_height_scale;//0.275f * 2.f;//大きいほど、高度が高い箇所のフォグが弱くなる。
+	vec3 global_invocation_id = gl_GlobalInvocationID.xyz;
+	vec4 result = vec4(0.f, 0.f, 0.f, 0.f);
+	//UVからワールド座標を計算して、その点のscattering係数を求める。
+	vec4 t;
+	t.xyz = global_invocation_id.xyz;
+	/*{//jitter
+		float dx = texelFetch(g_dither_sampler, ivec2(int(global_invocation_id.x + g_count) % 4, int(global_invocation_id.y) % 4), 0).r;
+		float dy = texelFetch(g_dither_sampler, ivec2(int(global_invocation_id.x + g_count + 1) % 4, int(global_invocation_id.y + 3) % 4), 0).r;
+		dx = dx * 2.f - 1.f;
+		dy = dy * 2.f - 1.f;
+		t.x += dx * 0.25f;
+		t.y += dy * 0.25f;
+	}//*/
+	/*{//jitter
+		//float dz = texelFetch(g_dither_sampler, ivec2(int(global_invocation_id.x + g_count) % 4, int(global_invocation_id.y) % 4), 0).r;
+		float dz = (int(g_count) % 16) / 16.f;
+		t.z += dz * 2.f;//なんか変だな。これで1ループする。
+	}//*/
+	const float slice_index = t.z;
+	t.z = (exp2(slice_index * g_linear_depth_from_slice.x) + g_linear_depth_from_slice.y) * g_linear_depth_from_slice.z;
+	t.w = 1.f;
+	t.xy *= t.z;
+	vec3 w;
+	w.x = dot(g_world_from_texcoord_row0, t);
+	w.y = dot(g_world_from_texcoord_row1, t);
+	w.z = dot(g_world_from_texcoord_row2, t);
+	const float eye_distance = length(w - g_eye_position);
+	float density_attenuator = exp(-min(100.f, w.y * height_scale));
+	density_attenuator *= density_attenuator;
+	density_attenuator *= clamp(eye_distance * g_depth_density_scale + g_depth_density_offset, 0.f, 1.f);
+	if(0.f < density_attenuator){//不要な時はテクスチャをフェッチしない。このフェッチが重い。
+		//密度計算。
+		float density_sample = textureLod(g_volume_noise_sampler, w.xyz * g_noise_texcoord_scale - vec3(g_noise_texcoord_offset0.x, 0.f, g_noise_texcoord_offset0.y) * 2.f, 0.f).b;
+		density_sample *= textureLod(g_volume_noise_sampler, w.xyz * g_noise_texcoord_scale * 0.5f + vec3(g_noise_texcoord_offset1.x, 0.f, g_noise_texcoord_offset1.y) * 3.f, 0.f).b;
+		density_sample = pow(density_sample, g_density_power);
+		density_sample *= g_density_scale;
+		density_sample += g_density_offset;
+		density_sample *= density_attenuator;
+		density_sample = min(density_sample, 1.f);
+		//散乱光計算。
+		const float slice_thickness = exp2(slice_index * g_linear_depth_from_slice.x) * g_linear_depth_from_slice.w;
+		const float scattering_coef = g_scattering_coef;
+		const float absorption_coef = g_absorption_coef;
+		const float scattering = scattering_coef * density_sample * slice_thickness;
+		const float absorption = absorption_coef * density_sample * slice_thickness;
+		vec3 ray_direction = normalize(w - g_eye_position);
+		vec3 lighting = vec3(0.f);
+		{
+			const float phase = calculate_phase(dot(g_parallel_light_dir.xyz, ray_direction), g_anisotropy_directional);
+			float shadow = 1.f;
+			{
+				const float view_distance = -dot(g_view_row2, vec4(w, 1.f));
+				int cascade_idx = 0;
+				if(view_distance < g_plane_distances.x){
+				}else if(view_distance < g_plane_distances.y){
+					cascade_idx = 1;
+				}else if(view_distance < g_plane_distances.z){
+					cascade_idx = 2;
+				}else{
+				}
+				vec3 shadow_uv;
+				shadow_uv.x = dot(g_shadow_fetches[cascade_idx * 3 + 0], vec4(w, 1.f));
+				shadow_uv.y = dot(g_shadow_fetches[cascade_idx * 3 + 1], vec4(w, 1.f));
+				shadow_uv.z = dot(g_shadow_fetches[cascade_idx * 3 + 2], vec4(w, 1.f));
+				shadow = min(exp(-g_exp_scale * shadow_uv.z) * textureLod(g_shadow_samplers[cascade_idx], shadow_uv.xy, 0.f).r, 1.f);
+			}
+			const vec3 directional_light_color = g_directional_light_color;//vec3(0.9f, 1.f, 1.25f) * 3.f;
+			lighting += directional_light_color * (g_ambient_light_intensity + shadow * phase);
+		}		
+		vec3 summed_point_light = vec3(0.f);
+		{
+			vec4 proj;
+			proj.x = dot(g_projection_view[0], vec4(w, 1.f));
+			proj.y = dot(g_projection_view[1], vec4(w, 1.f));
+			proj.z = dot(g_projection_view[2], vec4(w, 1.f));
+			proj.w = dot(g_projection_view[3], vec4(w, 1.f));
+			Tile tile;
+			fetch_tile(tile, proj);
+			const int ln = tile.m_count;
+			int idx = tile.m_index_offset;
+			for(int i = 0; i < ln; ++ i){
+				Light lgt;
+				fetch_light(lgt, idx);
+				vec3 l = lgt.m_sphere.xyz - w;
+				float ll = dot(l, l);
+				l *= 1.f / (sqrt(ll) + 0.00001f);
+				const float cone_attenuation = calculate_spot_attenuation(lgt.m_packed, l);
+				const float phase = calculate_phase(dot(l, ray_direction), g_anisotropy_point);
+				float rr = lgt.m_sphere.w * lgt.m_sphere.w;
+				float s = clamp(ll / rr, 0.f, 1.f);
+				s *= s;
+				s = 1.f - s;
+				const float min_radius = 1.f;//適当。無いと発光するため。
+				summed_point_light += lgt.m_color.rgb / max(min_radius * min_radius, ll) * s * cone_attenuation * phase;//散乱光ということで。
+				//summed_point_light += lgt.m_color.rgb * s * cone_attenuation * phase * 0.02f;//散乱光ということで。
+				++ idx;
+			}
+			//lighting += summed_point_light * 1.5f;
+			lighting += summed_point_light * g_point_light_intensity_scale;
+		}
+		lighting *= g_fog_albedo;
+		//extinction=scattering+absorption
+		//	absorption=extinction-scattering
+		result = vec4(lighting * scattering, scattering * g_scattering_abosorption_ratio + absorption);//g_scattering_abosorption_ratioは見た目の調整値。エネルギーの保存としては1が正しい。0にすると散乱光が加算になる。//lightingの輝度を消滅係数には計上しない。
+	}
+	{//適当に線形fogを混ぜ合わせる。
+		float depth_fog_intensity = clamp(eye_distance * g_depth_fog_scale + g_depth_fog_offset, 0.f, 1.f) * g_depth_fog_color.w;
+		//scattering += depth_fog_intensity;
+		//lighting += g_depth_fog_color.rgb;
+		result.w += depth_fog_intensity;
+		result.rgb += g_depth_fog_color.rgb * depth_fog_intensity;
+	}
+	imageStore(g_output, ivec3(global_invocation_id), result);
+}
+layout(local_size_x = 5, local_size_y = 30, local_size_z = 1) in;

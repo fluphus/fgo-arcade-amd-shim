@@ -32,5 +32,7 @@
   "tests/fixtures/particle/native_shader_2602.glsl",
   "tests/fixtures/particle/native_shader_2603.glsl",
   "tests/fixtures/particle/native_2625.glsl", "tests/fixtures/particle/native_2631.glsl",
-  "tests/fixtures/particle/native_2633.glsl", "tests/fixtures/particle/native_2635.glsl"
+  "tests/fixtures/particle/native_2633.glsl", "tests/fixtures/particle/native_2635.glsl",
+  "tests/compute_pointer_wrapper.c", "tests/compute_pointer_driver_test.py",
+  "tests/fixtures/compute/london_scattering.comp"
 ]

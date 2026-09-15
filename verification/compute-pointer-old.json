@@ -1,0 +1,45 @@
+{
+  "shader": "source/tests/fixtures/compute/london_scattering.comp",
+  "results": [
+    {
+      "cache": 0,
+      "stale_binding_fixed": false,
+      "ubo_range_changed": false,
+      "ubo_contents_changed": false,
+      "pointer_free": true,
+      "stale_pixel": [
+        509.0,
+        509.0,
+        509.0,
+        1.0
+      ],
+      "expected_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ]
+    },
+    {
+      "cache": 1,
+      "stale_binding_fixed": false,
+      "ubo_range_changed": false,
+      "ubo_contents_changed": false,
+      "pointer_free": true,
+      "stale_pixel": [
+        509.0,
+        509.0,
+        509.0,
+        1.0
+      ],
+      "expected_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ]
+    }
+  ],
+  "all_fixed": false,
+  "provenance": "Original controlled AMD regression with the captured London shader; shader output is compared with direct correct SSBO binding."
+}

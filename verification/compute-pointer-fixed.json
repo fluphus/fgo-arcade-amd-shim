@@ -1,0 +1,45 @@
+{
+  "shader": "source/tests/fixtures/compute/london_scattering.comp",
+  "results": [
+    {
+      "cache": 0,
+      "stale_binding_fixed": true,
+      "ubo_range_changed": true,
+      "ubo_contents_changed": true,
+      "pointer_free": true,
+      "stale_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ],
+      "expected_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ]
+    },
+    {
+      "cache": 1,
+      "stale_binding_fixed": true,
+      "ubo_range_changed": true,
+      "ubo_contents_changed": true,
+      "pointer_free": true,
+      "stale_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ],
+      "expected_pixel": [
+        1.2724609375,
+        0.63623046875,
+        0.318115234375,
+        1.0
+      ]
+    }
+  ],
+  "all_fixed": true,
+  "provenance": "Executed again using the packaged source and fixture before publication."
+}

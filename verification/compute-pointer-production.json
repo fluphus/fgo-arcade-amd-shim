@@ -1,0 +1,15 @@
+{
+  "renderer_base_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "renderer_patch": "Compute dispatch pointer replay from 520216e",
+  "renderer_sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76",
+  "source_sha256": "9F77A6B753EDF33A829C8245E268049FC89CF6A8E4A182468EC67F32B4EF31A4",
+  "packaged_dll_byte_identical_to_tested_and_deployed": true,
+  "packaged_source_rebuild_matches_except_pe_metadata": true,
+  "export_names_and_ordinals_unchanged": 368,
+  "compiler_warnings": 24,
+  "compiler_errors": 0,
+  "visual_confirmation": "User confirmed London white flashes are fixed on the deployed build.",
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "regression": "compute-pointer-fixed.json",
+  "old_comparison": "compute-pointer-old.json"
+}

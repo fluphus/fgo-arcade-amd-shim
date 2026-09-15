@@ -87,6 +87,28 @@ The production build does not enable the lifetime audit probe. The cache
 counters are available to the optional sampler for diagnosing hit and miss
 rates; they are not required for normal installation.
 
+## London Fog Compute Regression
+
+The fog compute shader uses translated NVIDIA pointers for its light data.
+The dispatcher now refreshes those SSBO bindings from the current UBO before
+execution. This prevents a previous draw's light range from leaking into fog.
+
+Run the captured shader on an AMD OpenGL context:
+
+```powershell
+$out = '.\build\compute-pointer'
+New-Item -ItemType Directory -Force $out | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\compute_pointer_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+python .\tests\compute_pointer_driver_test.py "$out\wrapper.dll" .\tests\fixtures\compute\london_scattering.comp "$out\result.json"
+```
+
+The test requires NumPy, included in `tools/requirements.txt`. It checks stale
+SSBO bindings, UBO range changes and pointer writes with caches enabled and
+disabled, plus a compute shader that uses no translated pointers. Expected
+output has `all_fixed: true`; a failure exits with an error. This is a controlled
+shader regression, not a complete battle replay. Results from the previous and
+fixed implementations are in `../verification/compute-pointer-*.json`.
+
 ## Reuse an Existing Shader Cache
 
 Revision 2 shares translated shaders across object IDs. To reuse a previous

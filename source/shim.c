@@ -3762,7 +3762,12 @@ static void WINAPI wrap_glDispatchCompute(GLuint gx, GLuint gy, GLuint gz)
     static glDispatchCompute_t real;
     if (!real) real = (glDispatchCompute_t)trace_resolve("glDispatchCompute");
 
-    if (real) BATTLE_OBSERVE_CALL("compute",0,gx,gy,gz,0,real(gx,gy,gz));
+    if (real) {
+        /* Compute shaders also lower NV UBO pointers to synthetic SSBOs.
+           Replay the current header instead of inheriting the last draw. */
+        apply_pointer_bindings();
+        BATTLE_OBSERVE_CALL("compute",0,gx,gy,gz,0,real(gx,gy,gz));
+    }
 
 }
 

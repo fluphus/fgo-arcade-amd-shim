@@ -1,4 +1,4 @@
-# FGO Arcade AMD Patch · 2026.09.15
+# FGO Arcade AMD Patch · 2026.09.16
 
 [中文](README.zh-CN.md) | [日本語](README.ja.md)
 
@@ -6,7 +6,7 @@ Only **AMD Radeon RX 7900 XTX** has been tested. In the latest PVP test, perform
 
 **Only 1920×1080 (1080p) is supported. Other resolutions have known rendering errors. The patch has a built-in 60 FPS cap.**
 
-This update reduces repeated buffer reads and draw-state work to improve battle performance.
+This update fixes intermittent large white flashes in London battles.
 
 ## Install and Restore
 

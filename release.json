@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release_id": "20260915-mapped-sampler-cache",
+  "release_id": "20260916-london-fog-fix",
   "baseline": "baseline-20260914-60hz-pvp",
-  "renderer_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "renderer_commit": "520216e64580d32fbf0cbdeef595ecedcf85887f",
   "architecture": "AMD64",
   "pacing_hz": 60,
   "configuration": "embedded",
@@ -15,11 +15,11 @@
   "performance_scope": "User reports almost entirely 60 FPS in PVP on RX 7900 XTX, briefly about 57 FPS on servant switches; other GPUs and modes unverified",
   "compiler": "clang version 22.1.8 (https://github.com/llvm/llvm-project.git ca7933e47d3a3451d81e72ac174dcb5aa28b59d1)",
   "source_inventory": "source/release/source-files.json",
-  "created_at": "2026-09-15T20:57:46.614867+08:00",
-  "renderer_reference_sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA",
+  "created_at": "2026-09-16T04:59:32.979136+08:00",
+  "renderer_reference_sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76",
   "build_command": "x86_64-w64-mingw32-gcc.exe -O2 -shared -o opengl32.dll shim.c shim.def -lgdi32 -luser32",
   "packaged_dll_name": "game-patch/opengl32.dll",
-  "visual_status": "Baseline rendering previously confirmed; this update passed offline sampler pixel, state and lifetime regressions. Latest user confirmation concerns PVP performance.",
+  "visual_status": "User confirmed the London white-flash fix in gameplay on RX 7900 XTX.",
   "files": [
     {
       "path": ".gitattributes",
@@ -54,7 +54,7 @@
     {
       "path": "game-patch/opengl32.dll",
       "bytes": 463872,
-      "sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA"
+      "sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76"
     },
     {
       "path": "LICENSE",
@@ -63,23 +63,23 @@
     },
     {
       "path": "README.en.md",
-      "bytes": 1371,
-      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+      "bytes": 1348,
+      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
     },
     {
       "path": "README.ja.md",
-      "bytes": 1825,
-      "sha256": "67ABAB591BA4FE16618A7C5B90C767C64C02A603CFD97B74B9579AC5953FCE97"
+      "bytes": 1804,
+      "sha256": "E30EA43E676A97C28F8C5A164768830C0FA358BB9C3C326EBECE8F4D472E8FA5"
     },
     {
       "path": "README.md",
-      "bytes": 1371,
-      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+      "bytes": 1348,
+      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
     },
     {
       "path": "README.zh-CN.md",
-      "bytes": 1319,
-      "sha256": "E9229DB78A5CDC188D75139620BA731E95F748AE368E921642083B7837361B3C"
+      "bytes": 1307,
+      "sha256": "39AFEF28EE39297886DC59A6DD690BD707B00C5187D43754C31B4891C3397E16"
     },
     {
       "path": "source/battle_driver_errors.h",
@@ -188,8 +188,8 @@
     },
     {
       "path": "source/README.md",
-      "bytes": 5271,
-      "sha256": "FB8A5AB0DA1AA96326CDE4081D9E79C5300E6FEC068C6386BD06834B3C629ED8"
+      "bytes": 6398,
+      "sha256": "77AFF2C2CBBD771CCF7C64B72F0C9645C59E76F0C6B44786DA712D13CEE66B55"
     },
     {
       "path": "source/release/embedded-profile.json",
@@ -218,23 +218,23 @@
     },
     {
       "path": "source/release/gui/README.en.md",
-      "bytes": 1371,
-      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+      "bytes": 1348,
+      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
     },
     {
       "path": "source/release/gui/README.ja.md",
-      "bytes": 1825,
-      "sha256": "67ABAB591BA4FE16618A7C5B90C767C64C02A603CFD97B74B9579AC5953FCE97"
+      "bytes": 1804,
+      "sha256": "E30EA43E676A97C28F8C5A164768830C0FA358BB9C3C326EBECE8F4D472E8FA5"
     },
     {
       "path": "source/release/gui/README.zh-CN.md",
-      "bytes": 1319,
-      "sha256": "E9229DB78A5CDC188D75139620BA731E95F748AE368E921642083B7837361B3C"
+      "bytes": 1307,
+      "sha256": "39AFEF28EE39297886DC59A6DD690BD707B00C5187D43754C31B4891C3397E16"
     },
     {
       "path": "source/release/gui/SOURCE.md",
-      "bytes": 5271,
-      "sha256": "FB8A5AB0DA1AA96326CDE4081D9E79C5300E6FEC068C6386BD06834B3C629ED8"
+      "bytes": 6398,
+      "sha256": "77AFF2C2CBBD771CCF7C64B72F0C9645C59E76F0C6B44786DA712D13CEE66B55"
     },
     {
       "path": "source/release/install.ps1",
@@ -248,8 +248,8 @@
     },
     {
       "path": "source/release/source-files.json",
-      "bytes": 2567,
-      "sha256": "1611C82C73ABBBA5EB2452C558E4F539FCB86556FF75304105AB0B10AC8A5308"
+      "bytes": 2695,
+      "sha256": "EFA87876ACF47A19FAF4F0FD0416C2FC7E23CBDBFA85932380D09CB3A9950E90"
     },
     {
       "path": "source/servant_dissolve_capture.h",
@@ -258,8 +258,8 @@
     },
     {
       "path": "source/shim.c",
-      "bytes": 1611014,
-      "sha256": "5255806D0581BCDD4A4F089F813BE845760A0039D2CB9BBE103000BC5999E368"
+      "bytes": 1611220,
+      "sha256": "9F77A6B753EDF33A829C8245E268049FC89CF6A8E4A182468EC67F32B4EF31A4"
     },
     {
       "path": "source/shim.def",
@@ -307,6 +307,16 @@
       "sha256": "417BAB8FDC0A53797790FCA480FE2091D85A5949AEF7BEE641A385D0B477BE95"
     },
     {
+      "path": "source/tests/compute_pointer_driver_test.py",
+      "bytes": 7945,
+      "sha256": "6A1C3F1915F5A9159935D6BC5F3DFD0BA89E65DE8BD1E7FEBCF33B58CE4BFD0E"
+    },
+    {
+      "path": "source/tests/compute_pointer_wrapper.c",
+      "bytes": 2186,
+      "sha256": "C8BB2D196932779A0C6CF406BCED46F3877D253D20B6F71948280C3F460CFEFC"
+    },
+    {
       "path": "source/tests/driver_residency_benchmark.c",
       "bytes": 481,
       "sha256": "2B73A69891F11EC85E4D899C6A9EAED56D9FAFDD34D70A3C7594057B4FCE2C35"
@@ -325,6 +335,11 @@
       "path": "source/tests/external_optimization_wrapper.c",
       "bytes": 6556,
       "sha256": "2B3B550522971AA8F2F3F7CF27979354FDED1C44804B4B7BD5985AF1D70B68D6"
+    },
+    {
+      "path": "source/tests/fixtures/compute/london_scattering.comp",
+      "bytes": 40388,
+      "sha256": "FD8BA902C2F6535E11B4698E53FC22E33DFDF3E5B6399C3E60261417A15E1B75"
     },
     {
       "path": "source/tests/fixtures/model/program_1156_shader_1154.glsl",
@@ -463,8 +478,8 @@
     },
     {
       "path": "source/tools/requirements.txt",
-      "bytes": 17,
-      "sha256": "0F66F23ABA357D7D65E4FCCA7C616A3B773433FA88DD33D55624714D5B4D7C16"
+      "bytes": 29,
+      "sha256": "F5E5DD9AD09584061D5EFA12D90674666893370C54BFC95077F9B69FBC2C37CC"
     },
     {
       "path": "source/tools/run-fixtures.ps1",
@@ -495,6 +510,21 @@
       "path": "verification/capture-validation.json",
       "bytes": 257,
       "sha256": "105C5D9B8D2141D6C5E0A682E36B8F2CF3256832E3EE5BB210492F175768D047"
+    },
+    {
+      "path": "verification/compute-pointer-fixed.json",
+      "bytes": 985,
+      "sha256": "3B4A5B4EA292635A676DEF89EB5CFDEF727E6FC01A74194CBDF2677AA368618A"
+    },
+    {
+      "path": "verification/compute-pointer-old.json",
+      "bytes": 1044,
+      "sha256": "262103BD923EF3001EF1280EF74FE5804156BAA1D8914C0ED938C22A03622BCA"
+    },
+    {
+      "path": "verification/compute-pointer-production.json",
+      "bytes": 764,
+      "sha256": "5DC1D92D82F8E492D53EB7A697DAE220448C30828C47D04332118497AAD00830"
     },
     {
       "path": "verification/gui-preview.png",
@@ -538,21 +568,20 @@
     },
     {
       "path": "verification/release-audit.json",
-      "bytes": 1554,
-      "sha256": "BA89FF6686EBF58A346A15BAD9C3DC24C870A4FAAF1E06665EEDF3305CDA209D"
+      "bytes": 1654,
+      "sha256": "FF22379DD974AA65F8D80580FDCE68B264A5764D96670FE4A45B285A84A5062D"
     },
     {
       "path": "verification/summary.json",
-      "bytes": 576,
-      "sha256": "EB24A0CA66400164574E6635DFE597CDF33ED19942A00C761E95A821A3D65CA7"
+      "bytes": 548,
+      "sha256": "FFC2D69C9C64E3A5B565389CA8AB1D25C5A55A2AC8A78E9D7931CE90B1C4C736"
     }
   ],
-  "source_revision": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "source_revision": "838e5710 + compute-dispatch hunk from 520216e",
   "changes": [
-    "Coalesce nearby mapped sampler fields and batch fresh-read fences within a draw",
-    "Cache private sampler-unit state between draws",
-    "Avoid vertex replay invalidation for UBO and element address updates",
-    "Cache explicit-flush persistent sampler reads until frame or publication boundaries",
-    "Include the updated sampler, AMD cache regression and trilingual instructions"
-  ]
+    "Fix transient white flashes in London by updating translated light pointers before compute dispatch",
+    "Include the focused AMD compute regression and its shader fixture"
+  ],
+  "renderer_base_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "renderer_patch_scope": "Compute-dispatch pointer replay only"
 }

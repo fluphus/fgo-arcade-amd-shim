@@ -17,6 +17,15 @@ def main(a):
     names=['g_frame_count','g_perf_pointer_exact_cache_hits','g_perf_pointer_exact_cache_misses','g_perf_pointer_shadow_reads','g_perf_cpu_shadow_reads','g_perf_mapped_flush_shadow_reads','g_perf_mapped_flush_shadow_flushes','g_perf_mapped_flush_shadow_bytes','g_perf_mapped_flush_shadow_misses','g_perf_pointer_replay_hash_cache_hits','g_perf_pointer_replay_hash_cache_misses','g_perf_emitter_header_hits','g_perf_emitter_header_misses','g_perf_rs_draws','g_perf_rs_fallbacks','g_perf_rs_handle_fallbacks','g_perf_rs_ui_draws','g_perf_rs_ui_fallbacks','g_perf_rs_upload_hits','g_perf_rs_upload_misses','g_perf_rs_program_query_skips','g_perf_rs_ubo_query_skips','g_perf_rs_ubo_query_fallbacks','g_bindless_state_replay_nv_range_updates','g_bindless_state_replay_nv_range_redundant']
     names += [n for n in ('g_perf_emitter_header_driver_reads','g_perf_emitter_header_driver_ticks') if n in syms]
     names += [n for n in ('g_perf_emitter_read_record_overflow',) if n in syms]
+    names += [n for n in ('g_perf_mapped_read_cache_hits',
+                          'g_perf_mapped_read_cache_misses',
+                          'g_perf_mapped_read_cache_bytes') if n in syms]
+    names += [n for n in (
+        'g_perf_mapped_audit_reads','g_perf_mapped_audit_eligible',
+        'g_perf_mapped_audit_hits','g_perf_mapped_audit_changed',
+        'g_perf_mapped_audit_reusable_bytes','g_perf_mapped_audit_flushes',
+        'g_perf_mapped_audit_boundaries','g_perf_mapped_audit_unflushed_hits',
+        'g_perf_mapped_audit_collisions') if n in syms]
     qpc_frequency=C.c_longlong()
     k.QueryPerformanceFrequency(C.byref(qpc_frequency))
     def read(n):
@@ -32,6 +41,12 @@ def main(a):
     record_symbol=syms.get('g_perf_emitter_read_records')
     record_file=out.with_name('emitter_reads.jsonl').open('w',encoding='utf-8',buffering=1) if record_symbol else None
     last_records={}
+    mismatch_fields=('sequence','frame','program','buffer','offset','size',
+                     'access','gpu_exposed','serial','first_diff','old_byte','new_byte')
+    mismatch_format=struct.Struct('<'+'Q'*len(mismatch_fields))
+    mismatch_symbol=syms.get('g_perf_mapped_audit_mismatches')
+    mismatch_file=out.with_name('mapped_mismatches.jsonl').open('w',encoding='utf-8',buffering=1) if mismatch_symbol else None
+    seen_mismatches=set()
     start=time.monotonic(); previous_time=start; prev={n:read(n) or 0 for n in names}
     while time.monotonic()-start<a.seconds and not out.with_name('stop_capture').exists():
         time.sleep(a.poll_ms/1000); cur={n:read(n) for n in names}; now=time.monotonic()
@@ -40,6 +55,13 @@ def main(a):
         row={'time':dt.datetime.now().astimezone().isoformat(),'elapsed_s':now-start,'window_s':window,'frames':cur['g_frame_count']-prev['g_frame_count'],'fps':(cur['g_frame_count']-prev['g_frame_count'])/window,'counters':{n:cur[n]-prev[n] for n in names},'totals':cur}
         row['qpc_frequency']=qpc_frequency.value
         f.write(json.dumps(row,separators=(',',':'))+'\n'); f.flush(); prev=cur
+        if mismatch_file and len(seen_mismatches)<min(32,cur.get('g_perf_mapped_audit_changed',0)):
+            data=C.create_string_buffer(mismatch_format.size*32); got=C.c_size_t()
+            if k.ReadProcessMemory(h,base+mismatch_symbol,data,len(data),C.byref(got)) and got.value==len(data):
+                for index,values in enumerate(mismatch_format.iter_unpack(data.raw)):
+                    if values[0]!=2 or index in seen_mismatches: continue
+                    seen_mismatches.add(index)
+                    mismatch_file.write(json.dumps(dict(time=row['time'],slot=index,**dict(zip(mismatch_fields,values))),separators=(',',':'))+'\n')
         if record_file and row['counters'].get('g_perf_emitter_header_driver_reads'):
             data=C.create_string_buffer(record_format.size*128); got=C.c_size_t()
             if k.ReadProcessMemory(h,base+record_symbol,data,len(data),C.byref(got)) and got.value==len(data):
@@ -51,5 +73,6 @@ def main(a):
                     record_file.write(json.dumps(dict(time=row['time'],slot=index,**dict(zip(record_fields,values))),separators=(',',':'))+'\n')
     f.close(); k.CloseHandle(h)
     if record_file: record_file.close()
+    if mismatch_file: mismatch_file.close()
 if __name__=='__main__':
     p=argparse.ArgumentParser(); p.add_argument('--pid',type=int,required=True); p.add_argument('--modules',type=Path,required=True); p.add_argument('--renderer',type=Path,required=True); p.add_argument('--symbol-file',type=Path); p.add_argument('--seconds',type=float,default=600); p.add_argument('--poll-ms',type=int,default=250); p.add_argument('--output',type=Path,required=True); main(p.parse_args())

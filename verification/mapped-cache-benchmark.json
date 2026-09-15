@@ -1,0 +1,27 @@
+{
+  "renderer_commit": "838e571",
+  "scope": "AMD mapped-read microbenchmark, not game FPS",
+  "groups_per_trial": 20000,
+  "requests_per_group": 2,
+  "measured_trials": 6,
+  "warmup_trials": 1,
+  "alternating_order": true,
+  "medians": {
+    "24": {
+      "before_ms": 27.6237,
+      "after_ms": 1.2866499999999998,
+      "speedup": 21.469474993199395
+    },
+    "1": {
+      "before_ms": 27.464100000000002,
+      "after_ms": 27.7957,
+      "speedup": 0.9880700971733039
+    },
+    "0": {
+      "before_ms": 27.5676,
+      "after_ms": 0.1558,
+      "speedup": 176.94223363286264
+    }
+  },
+  "note": "GPU exposure was explicitly checked in the separate 30-case correctness rerun (mapped-cache-driver-exposed.json); the timing run predates that test-helper correction."
+}

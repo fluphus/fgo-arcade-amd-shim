@@ -1,17 +1,36 @@
 {
-  "renderer_commit": "44a20cb",
-  "renderer_sha256": "A85042D91EA60A3108F28DFAD4673265F2E1F2A402B252436E5D5757C368A0F0",
-  "source_sha256": "C401BFDAB9470A1A2DDCEF07E2BEC5BF966806B11788AFA6954830A781486035",
+  "renderer_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "renderer_sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA",
+  "source_sha256": "5255806D0581BCDD4A4F089F813BE845760A0039D2CB9BBE103000BC5999E368",
   "packaged_dll_byte_identical_to_tested_and_deployed": true,
   "packaged_source_rebuild_matches_except_pe_metadata": true,
+  "compiler_warnings": 24,
+  "compiler_errors": 0,
+  "production_lifetime_audit_compiled_out": true,
   "current_offline_regressions": [
-    "cache-pacing.json",
-    "cache-migration.json",
+    "mapped-cache-driver-exposed.json",
+    "mapped-cache-benchmark.json",
     "regular-sampler-driver.json"
   ],
-  "gui_and_installer_unchanged_from_public_commit": "4120035612e623876d717680b98786bdbc8f689a",
-  "inherited_baseline_validation": "summary.json",
+  "current_production_verification": "mapped-cache-production.json",
+  "gui_installer_and_native_sampler_unchanged_from_public_commit": "1fbf3e4a2f27ab19235493e0ee7c0c867605a6d2",
+  "inherited_validation": [
+    "summary.json",
+    "gui-validation.json",
+    "capture-validation.json",
+    "cache-pacing.json",
+    "cache-migration.json",
+    "mapped-memory.json",
+    "mapped-sampler.json"
+  ],
   "external_marker_files_required": false,
   "capture_layer_packaged": false,
-  "gameplay_monitoring_used_for_this_update": false
+  "performance_validation": {
+    "source": "User gameplay report",
+    "gpu": "AMD Radeon RX 7900 XTX",
+    "mode": "PVP",
+    "result": "Almost entirely 60 FPS, minimum observed about 57 FPS during servant switches",
+    "instrumented_latest_run": false
+  },
+  "visual_status": "Baseline rendering previously confirmed; current offline sampler regression verifies pixels and state. Latest user report confirmed performance, not a new full visual regression."
 }

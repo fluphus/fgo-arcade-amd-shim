@@ -49,6 +49,7 @@ __declspec(dllexport) int TestRegularInstall(HMODULE module, wglGetProcAddress_t
    the production query-cache branch without bypassing its validity checks. */
 __declspec(dllexport) void TestRegularSeedState(GLuint program)
 {
+    g_perf_rs_units_known=0; /* Setup in this fixture uses unwrapped real GL. */
     g_perf_rs_state_cache_on=1;
     g_current_program=program;
     g_current_program_valid=1;
@@ -62,6 +63,16 @@ __declspec(dllexport) void TestRegularSeedState(GLuint program)
 }
 __declspec(dllexport) void TestRegularDisableCache(void)
 { g_perf_rs_state_cache_on=0; g_current_program_valid=0; }
+
+__declspec(dllexport) PROC TestRegularBindingProc(const char *name)
+{
+    if (!strcmp(name,"glBindTexture")) return (PROC)wrap_glBindTexture;
+    if (!strcmp(name,"glActiveTexture")) return (PROC)wrap_glActiveTexture;
+    if (!strcmp(name,"glBindTextures")) return (PROC)wrap_glBindTextures;
+    if (!strcmp(name,"glBindTextureUnit")) return (PROC)wrap_glBindTextureUnit;
+    if (!strcmp(name,"glBindMultiTextureEXT")) return (PROC)wrap_glBindMultiTextureEXT;
+    return perf_rs_wrapper(name);
+}
 __declspec(dllexport) GLuint TestRegularBuild(GLuint program)
 {
     if (program>=65536) return 0;

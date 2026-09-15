@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$GameDirectory,
     [ValidateRange(1,86400)][int]$Seconds = 600,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [switch]$MappedLifetimeAudit
 )
 $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell.' }
@@ -33,6 +34,10 @@ $loaded = @($modules | Where-Object { $_.FileName -eq $renderer })
 if ($loaded.Count -ne 1) { throw 'The selected game has not loaded the patch DLL.' }
 $programSymbol = @(& llvm-nm.exe --defined-only $renderer | Select-String ' g_current_program$')
 if ($LASTEXITCODE -ne 0 -or $programSymbol.Count -ne 1) { throw 'Renderer symbols are missing or incompatible.' }
+if ($MappedLifetimeAudit) {
+    $auditSymbols = @(& llvm-nm.exe --defined-only $renderer | Select-String ' g_perf_mapped_audit_(reads|flushes|changed|mismatches)$')
+    if ($LASTEXITCODE -ne 0 -or $auditSymbols.Count -ne 4) { throw 'This DLL does not contain the mapped lifetime diagnostic. No capture started.' }
+}
 $imageBase = & $python -c 'import pefile, sys; print(pefile.PE(sys.argv[1], fast_load=True).OPTIONAL_HEADER.ImageBase)' $renderer
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read renderer image base.' }
 $programAddress = '0x{0:x}' -f ($loaded[0].Base + [Convert]::ToInt64(($programSymbol[0].Line -split '\s+')[0],16) - [long]$imageBase)
@@ -44,6 +49,7 @@ $manifest = [ordered]@{
     started=[DateTimeOffset]::Now.ToString('o'); expected_end=[DateTimeOffset]::Now.AddSeconds($Seconds).ToString('o')
     game_pid=$game[0].Id; renderer=$renderer; renderer_sha256=(Get-FileHash -LiteralPath $pinned -Algorithm SHA256).Hash
     seconds=$Seconds; poll_ms=250; program_address=$programAddress
+    mapped_lifetime_audit=$MappedLifetimeAudit.IsPresent
 }
 $manifestPath = Join-Path $capture 'manifest.json'
 $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8

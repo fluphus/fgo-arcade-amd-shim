@@ -1,0 +1,8 @@
+{
+  "source_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
+  "sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA",
+  "bytes": 463872,
+  "exports": 368,
+  "audit_compiled_out": true,
+  "cache_counters_present": true
+}

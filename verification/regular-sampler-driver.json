@@ -1350,16 +1350,122 @@
   },
   "default_handle_mode_uses_original": true,
   "fallback_preserves_state": true,
+  "private_unit_mutations": [
+    [
+      1,
+      "texture unit"
+    ],
+    [
+      1,
+      "clear all targets"
+    ],
+    [
+      1,
+      "multi texture range"
+    ],
+    [
+      1,
+      "null texture range"
+    ],
+    [
+      1,
+      "explicit cube target"
+    ],
+    [
+      1,
+      "legacy texture"
+    ],
+    [
+      1,
+      "sampler unit"
+    ],
+    [
+      1,
+      "null sampler range"
+    ],
+    [
+      1,
+      "sampler range"
+    ],
+    [
+      1,
+      "inside attribute stack"
+    ],
+    [
+      1,
+      "pop texture attributes"
+    ],
+    [
+      1,
+      "delete bound texture"
+    ],
+    [
+      1,
+      "delete bound sampler"
+    ],
+    [
+      0,
+      "texture unit"
+    ],
+    [
+      0,
+      "clear all targets"
+    ],
+    [
+      0,
+      "multi texture range"
+    ],
+    [
+      0,
+      "null texture range"
+    ],
+    [
+      0,
+      "explicit cube target"
+    ],
+    [
+      0,
+      "legacy texture"
+    ],
+    [
+      0,
+      "sampler unit"
+    ],
+    [
+      0,
+      "null sampler range"
+    ],
+    [
+      0,
+      "sampler range"
+    ],
+    [
+      0,
+      "inside attribute stack"
+    ],
+    [
+      0,
+      "pop texture attributes"
+    ],
+    [
+      0,
+      "delete bound texture"
+    ],
+    [
+      0,
+      "delete bound sampler"
+    ]
+  ],
   "measurements": [
     {
       "lowered": false,
-      "submit_ms": 0.0657,
-      "completed_ms": 501.6211999900406
+      "submit_ms": 0.0495,
+      "completed_ms": 503.77039998420514
     },
     {
       "integrated": true,
       "hits": 2000,
-      "completed_ms": 21.210299993981607
+      "completed_ms": 17.733000015141442
     }
   ],
   "ordinary_samplers": 31,

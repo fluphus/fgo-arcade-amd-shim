@@ -96,8 +96,8 @@ EXPORTS
     glEvalPoint1=opengl32real.glEvalPoint1
     glEvalPoint2=opengl32real.glEvalPoint2
     glFeedbackBuffer=opengl32real.glFeedbackBuffer
-    glFinish=opengl32real.glFinish
-    glFlush=opengl32real.glFlush
+    glFinish=wrap_glFinish
+    glFlush=wrap_glFlush
     glFogf=opengl32real.glFogf
     glFogfv=opengl32real.glFogfv
     glFogi=opengl32real.glFogi
@@ -210,7 +210,7 @@ EXPORTS
     glPolygonMode=opengl32real.glPolygonMode
     glPolygonOffset=opengl32real.glPolygonOffset
     glPolygonStipple=opengl32real.glPolygonStipple
-    glPopAttrib=opengl32real.glPopAttrib
+    glPopAttrib=perf_rs_pop_attrib
     glPopClientAttrib=opengl32real.glPopClientAttrib
     glPopMatrix=opengl32real.glPopMatrix
     glPopName=opengl32real.glPopName

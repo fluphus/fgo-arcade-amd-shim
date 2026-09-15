@@ -1,9 +1,9 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Destination,
-    [string]$ReleaseId = 'baseline-20260914-60hz-pvp',
-    [string]$BuildDirectory = 'build\gui-release-20260914',
-    [string]$ReferenceRenderer = 'build\mapped-sampler-read-20260914\opengl32.dll'
+    [string]$ReleaseId = '20260915-mapped-sampler-cache',
+    [string]$BuildDirectory = 'build\gui-release',
+    [string]$ReferenceRenderer = '..\game-patch\opengl32.dll'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $build -Force | Out-Null
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 Push-Location $root
 try {
-    $revision = 'baseline-20260914-60hz-pvp'
+    $revision = '838e5710a3a54aa947bf8867ce878c96274709c0'
     $sourceFiles = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-files.json') -Raw | ConvertFrom-Json
 
     $linkerName = Split-Path -Leaf $ReferenceRenderer
@@ -25,7 +25,7 @@ try {
     & (Join-Path $PSScriptRoot 'gui\build.ps1') -Output (Join-Path $build 'FgoAmdPatch.exe') *> (Join-Path $build 'gui-build.log')
     $dll = Join-Path $build $linkerName
     $reference = if ([IO.Path]::IsPathRooted($ReferenceRenderer)) { $ReferenceRenderer } else { Join-Path $root $ReferenceRenderer }
-    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne '8F3A525C30E855B913E8A9D09019662B514C0E4189197CE1DCE2DF43754DBDB8') {
+    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne '71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA') {
         throw 'Reference is not the user-confirmed baseline DLL.'
     }
     & python (Join-Path $root 'tests\release_binary_compare.py') $reference $dll
@@ -40,6 +40,7 @@ try {
     foreach ($language in @('zh-CN','en','ja')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui\README.$language.md") -Destination (Join-Path $package "README.$language.md")
     }
+    Copy-Item -LiteralPath (Join-Path $package 'README.en.md') -Destination (Join-Path $package 'README.md')
     foreach ($name in $sourceFiles) {
         $target = Join-Path $package ('source\' + $name)
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
@@ -59,16 +60,16 @@ try {
         )
         $manifest = [ordered]@{
             schema = 1; release_id = $ReleaseId; baseline = $ReleaseId; source_revision = $revision
-            renderer_commit = 'bf3740d'
+            renderer_commit = $revision
             architecture = 'AMD64'; pacing_hz = 60; configuration = 'embedded'
             supported_resolution = @(1920,1080); other_resolutions = 'Known rendering errors'
-            tested_gpu = 'AMD Radeon RX 7900 XTX'; performance_scope = '60 FPS throughout PVP on the tested GPU only'
+            tested_gpu = 'AMD Radeon RX 7900 XTX'; performance_scope = 'User reports almost entirely 60 FPS in PVP, briefly about 57 FPS on servant switches; other GPUs and modes unverified'
             compiler = $compilerVersion; source_inventory = 'source/release/source-files.json'
             created_at = [DateTimeOffset]::Now.ToString('o')
             renderer_reference_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
             build_command = "x86_64-w64-mingw32-gcc.exe -O2 -shared -o $linkerName shim.c shim.def -lgdi32 -luser32"
             packaged_dll_name = 'game-patch/opengl32.dll'
-            visual_status = 'Rendering and final PVP servant-switch performance fix confirmed by user.'
+            visual_status = 'Baseline rendering previously confirmed; this update passed offline sampler pixel, state and lifetime regressions. Latest user confirmation concerns PVP performance.'
             files = $files
         }
         [IO.File]::WriteAllText((Join-Path $package 'release.json'), ($manifest | ConvertTo-Json -Depth 6), $utf8)
@@ -114,7 +115,7 @@ try {
     if ($generatedBuild -ne ($package + '\source\build')) { throw 'Unexpected fixture output directory.' }
     Remove-Item -LiteralPath $generatedBuild -Recurse -Force
     [ordered]@{
-        renderer_commit = 'bf3740d'; renderer_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
+        renderer_commit = $revision; renderer_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
         source_sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'source\shim.c') -Algorithm SHA256).Hash
         release_matches_deployed_renderer_except_pe_metadata = $true
         packaged_source_rebuild_matches_except_pe_metadata = $true

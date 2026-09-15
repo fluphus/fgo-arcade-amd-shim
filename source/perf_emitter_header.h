@@ -190,6 +190,7 @@ static void perf_emitter_header_record_read(GLuint buffer, GLintptr offset,
 static void WINAPI perf_emitter_clear_buffer(GLenum target, GLenum internal,
                                              GLenum format, GLenum type, const void *data)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static void (WINAPI *real)(GLenum, GLenum, GLenum, GLenum, const void *);
     if (!real) real = (__typeof__(real))trace_resolve("glClearBufferData");
     if (target < 65536) perf_emitter_header_invalidate(g_bound_buffer[target], 0, -1);
@@ -199,6 +200,7 @@ static void WINAPI perf_emitter_clear_buffer(GLenum target, GLenum internal,
 static void WINAPI perf_emitter_clear_named_buffer(GLuint buffer, GLenum internal,
                                                    GLenum format, GLenum type, const void *data)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static void (WINAPI *real)(GLuint, GLenum, GLenum, GLenum, const void *);
     if (!real) real = (__typeof__(real))trace_resolve("glClearNamedBufferData");
     perf_emitter_header_invalidate(buffer, 0, -1);
@@ -208,6 +210,7 @@ static void WINAPI perf_emitter_clear_named_buffer(GLuint buffer, GLenum interna
 static void WINAPI perf_emitter_clear_buffer_range(GLenum target, GLenum internal,
     GLintptr offset, GLsizeiptr size, GLenum format, GLenum type, const void *data)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static void (WINAPI *real)(GLenum, GLenum, GLintptr, GLsizeiptr, GLenum, GLenum, const void *);
     if (!real) real = (__typeof__(real))trace_resolve("glClearBufferSubData");
     if (target < 65536) perf_emitter_header_invalidate(g_bound_buffer[target], offset, size);
@@ -217,6 +220,7 @@ static void WINAPI perf_emitter_clear_buffer_range(GLenum target, GLenum interna
 static void WINAPI perf_emitter_clear_named_buffer_range(GLuint buffer, GLenum internal,
     GLintptr offset, GLsizeiptr size, GLenum format, GLenum type, const void *data)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static void (WINAPI *real)(GLuint, GLenum, GLintptr, GLsizeiptr, GLenum, GLenum, const void *);
     if (!real) real = (__typeof__(real))trace_resolve("glClearNamedBufferSubData");
     perf_emitter_header_invalidate(buffer, offset, size);

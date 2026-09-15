@@ -11,5 +11,5 @@
   "driver_tests": true,
   "benchmarks": true,
   "renderer_commit": "bf3740d",
-  "scope": "Original baseline validation. Current update: cache-pacing.json, cache-migration.json and regular-sampler-driver.json."
+  "scope": "Original bf3740d baseline validation. Current renderer: mapped-cache-production.json, mapped-cache-driver-exposed.json, mapped-cache-benchmark.json and regular-sampler-driver.json. Earlier cache/pacing evidence is retained with its original provenance."
 }

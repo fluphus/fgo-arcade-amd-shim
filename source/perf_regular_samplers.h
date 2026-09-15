@@ -480,6 +480,24 @@ static GLuint g_perf_rs_saved_textures[PERF_RS_SLOTS];
 static GLuint g_perf_rs_saved_samplers[PERF_RS_SLOTS];
 static GLint g_perf_rs_saved_active;
 static uint32_t g_perf_rs_changed_textures, g_perf_rs_changed_samplers;
+/* Application bindings queried from GL, not texture contents. Temporary
+   bindings are still restored after each draw. A target change or any
+   application mutation of the unit forces a fresh query. */
+static uint32_t g_perf_rs_units_known;
+static GLenum g_perf_rs_unit_binding[PERF_RS_SLOTS];
+static GLuint g_perf_rs_unit_textures[PERF_RS_SLOTS];
+static GLuint g_perf_rs_unit_samplers[PERF_RS_SLOTS];
+
+static void perf_rs_invalidate_units(GLuint first, GLsizei count)
+{
+    if (count<=0 || first>=64+PERF_RS_SLOTS) return;
+    uint64_t end=(uint64_t)first+(unsigned)count;
+    if (end<=64) return;
+    unsigned lo=first>64 ? first-64 : 0;
+    unsigned hi=end<64+PERF_RS_SLOTS ? (unsigned)end-64 : PERF_RS_SLOTS;
+    uint32_t mask=(uint32_t)(((1ULL<<hi)-1)^((1ULL<<lo)-1));
+    g_perf_rs_units_known&=~mask;
+}
 /* This scope never survives an application multi-draw call.  Only the private
    units persist between its records; the application program is restored after
    every draw so the existing glUniform1i DrawID update remains authoritative. */
@@ -1056,11 +1074,9 @@ static GLint perf_rs_handle_target(bindless_handle_rec *h)
 
 #include <smmintrin.h>
 
-static __attribute__((target("sse4.1"), noinline)) void
-perf_rs_wc_read(const unsigned char *source, size_t size, unsigned char *dst)
+static __attribute__((target("sse4.1"), always_inline)) inline void
+perf_rs_wc_read_lanes(const unsigned char *source, size_t size, unsigned char *dst)
 {
-    /* Order WC reads against earlier CPU writes; retain no bytes across calls. */
-    _mm_mfence();
     while (size) {
         uintptr_t aligned = (uintptr_t)source & ~(uintptr_t)15;
         size_t skip = (uintptr_t)source - aligned;
@@ -1072,11 +1088,42 @@ perf_rs_wc_read(const unsigned char *source, size_t size, unsigned char *dst)
         memcpy(dst, lane + skip, take);
         source += take; dst += take; size -= take;
     }
+}
+
+static __attribute__((target("sse4.1"), noinline)) void
+perf_rs_wc_read(const unsigned char *source, size_t size, unsigned char *dst)
+{
+    /* Order WC reads against earlier CPU writes; retain no bytes across calls. */
+    _mm_mfence();
+    perf_rs_wc_read_lanes(source,size,dst);
     _mm_mfence();
 }
 
-static int perf_rs_wc_copy(bindless_map_rec *m, const unsigned char *source,
-                           size_t size, void *dst)
+typedef struct {
+    const unsigned char *source;
+    unsigned char *dst;
+    size_t size;
+    bindless_map_rec *map;
+} perf_rs_wc_request;
+
+static __attribute__((target("sse4.1"), noinline)) void
+perf_rs_wc_read_batch(const perf_rs_wc_request *reads, int count)
+{
+    /* All requests belong to this draw; finish before interpreting any bytes. */
+    _mm_mfence();
+    for (int i=0;i<count;i++)
+        perf_rs_wc_read_lanes(reads[i].source,reads[i].size,reads[i].dst);
+    _mm_mfence();
+    for (int i=0;i<count;i++)
+        perf_mapped_read_store(reads[i].map,reads[i].source,reads[i].size,reads[i].dst);
+#ifdef FGO_MAPPED_LIFETIME_AUDIT
+    for (int i=0;i<count;i++)
+        perf_mapped_audit_note(reads[i].map,reads[i].source,reads[i].size,reads[i].dst);
+#endif
+}
+
+static int perf_rs_wc_eligible(bindless_map_rec *m, const unsigned char *source,
+                               size_t size)
 {
     if (!m->sampler_wc_read) {
         MEMORY_BASIC_INFORMATION info;
@@ -1094,7 +1141,29 @@ static int perf_rs_wc_copy(bindless_map_rec *m, const unsigned char *source,
     size_t tail = (-(uintptr_t)(source + size)) & 15;
     if (first < (uintptr_t)m->ptr ||
         (size_t)(source - m->ptr) + size + tail > (size_t)m->length) return 0;
-    perf_rs_wc_read(source, size, dst);
+    return 1;
+}
+
+static int perf_rs_wc_copy(bindless_map_rec *m, const unsigned char *source,
+                           size_t size, void *dst)
+{
+    if (!perf_rs_wc_eligible(m,source,size)) return 0;
+    perf_rs_wc_read(source,size,dst);
+    return 1;
+}
+
+static int perf_rs_queue_mapped_read(bindless_map_rec *m, GLintptr offset,
+                                    GLsizeiptr size, void *data,
+                                    perf_rs_wc_request *reads, int *count)
+{
+    if (*count>=PERF_RS_SLOTS+1 || size<=0 ||
+        !(g_perf_pointer_shadow_on || g_perf_cpu_shadow_on) || !m->ptr ||
+        !(m->access&0x0002) || offset<m->offset || size>m->length ||
+        offset-m->offset>m->length-size) return 0;
+    const unsigned char *source=m->ptr+(size_t)(offset-m->offset);
+    if (!perf_rs_wc_eligible(m,source,(size_t)size)) return 0;
+    if (perf_mapped_read_copy(m,source,(size_t)size,data)) return 1;
+    reads[(*count)++]=(perf_rs_wc_request){source,data,(size_t)size,m};
     return 1;
 }
 
@@ -1105,7 +1174,12 @@ static int perf_rs_mapped_copy(bindless_map_rec *m, GLuint buffer, GLintptr offs
         (m->access&0x0002) && offset>=m->offset && size<=m->length &&
         offset-m->offset<=m->length-size) {
         const unsigned char *source=m->ptr+(size_t)(offset-m->offset);
+        if (perf_mapped_read_copy(m,source,(size_t)size,data)) return 1;
         if (size>16 && perf_rs_wc_copy(m,source,(size_t)size,data)) {
+            perf_mapped_read_store(m,source,(size_t)size,data);
+#ifdef FGO_MAPPED_LIFETIME_AUDIT
+            perf_mapped_audit_note(m,source,(size_t)size,data);
+#endif
             g_perf_pointer_shadow_reads++;
             return 1;
         }
@@ -1114,6 +1188,10 @@ static int perf_rs_mapped_copy(bindless_map_rec *m, GLuint buffer, GLintptr offs
         else if (size==16) memcpy(data,source,16);
         else if (size==4) memcpy(data,source,4);
         else memcpy(data,source,(size_t)size);
+        perf_mapped_read_store(m,source,(size_t)size,data);
+#ifdef FGO_MAPPED_LIFETIME_AUDIT
+        perf_mapped_audit_note(m,source,(size_t)size,data);
+#endif
         g_perf_pointer_shadow_reads++;
         return 1;
     }
@@ -1192,6 +1270,8 @@ static int perf_rs_begin_draw(GLint draw_id)
         }
     }
     unsigned char bytes[8][2048];
+    perf_rs_wc_request pending[PERF_RS_SLOTS+1];
+    int pending_count=0;
     for (int b=0;b<8;b++) {
         if (!p->bytes[b]) continue;
         GLint buffer=0; GLint64 offset=0,length=0;
@@ -1214,16 +1294,22 @@ static int perf_rs_begin_draw(GLint draw_id)
             g_perf_rs_rejects[1]++; goto fallback;
         }
         offset+=record;
-        /* Read only fields consumed below. Gaps need neither a GPU-memory
-           read nor CPU-upload validity; all required bytes remain current. */
+        /* Nearby mapped fields share a fresh read. CPU-upload validity and
+           sparse mapped blocks still follow the exact reflected ranges. */
         bindless_map_rec *map=p->maps[b];
         if (!map || !map->active || map->buffer!=(GLuint)buffer)
             p->maps[b]=map=bindless_map_find((GLuint)buffer);
         int mapped=map!=NULL;
+        int span=p->bytes[b]-p->first[b];
+        if (mapped && span>16 && span<=64 && perf_rs_queue_mapped_read(map,
+                (GLintptr)offset+p->first[b],span,bytes[b]+p->first[b],
+                pending,&pending_count)) continue;
         for (int r=0;r<p->range_count;r++) {
             const perf_rs_range *range=&p->ranges[r];
             if (range->block!=b) continue;
             int first=range->first, size=range->end-first;
+            if (mapped && perf_rs_queue_mapped_read(map,(GLintptr)offset+first,
+                    size,bytes[b]+first,pending,&pending_count)) continue;
             int copied=mapped
                 ? perf_rs_mapped_copy(map,(GLuint)buffer,(GLintptr)offset+first,
                                       size,bytes[b]+first)
@@ -1240,6 +1326,10 @@ static int perf_rs_begin_draw(GLint draw_id)
                 g_perf_rs_rejects[2]++; goto fallback;
             }
         }
+    }
+    if (pending_count) {
+        perf_rs_wc_read_batch(pending,pending_count);
+        g_perf_pointer_shadow_reads+=(unsigned)pending_count;
     }
     if (p->proxy_block>=0) {
         float proxies;
@@ -1324,8 +1414,19 @@ static int perf_rs_begin_draw(GLint draw_id)
             texture=(GLint)g_perf_rs_batch_textures[i];
             sampler=(GLint)g_perf_rs_batch_samplers[i];
         } else {
-            g_perf_rs_gl.get_i(p->samplers[i].binding,64+i,&texture);
-            g_perf_rs_gl.get_i(0x8919,64+i,&sampler);
+            GLenum binding=p->samplers[i].binding;
+            if (g_perf_rs_state_cache_on && (g_perf_rs_units_known&(1u<<i)) &&
+                g_perf_rs_unit_binding[i]==binding) {
+                texture=(GLint)g_perf_rs_unit_textures[i];
+                sampler=(GLint)g_perf_rs_unit_samplers[i];
+            } else {
+                g_perf_rs_gl.get_i(binding,64+i,&texture);
+                g_perf_rs_gl.get_i(0x8919,64+i,&sampler);
+                g_perf_rs_unit_binding[i]=binding;
+                g_perf_rs_unit_textures[i]=(GLuint)texture;
+                g_perf_rs_unit_samplers[i]=(GLuint)sampler;
+                g_perf_rs_units_known|=1u<<i;
+            }
             g_perf_rs_saved_textures[i]=(GLuint)texture;
             g_perf_rs_saved_samplers[i]=(GLuint)sampler;
         }
@@ -1386,6 +1487,7 @@ static void perf_rs_end(void)
 
 static void perf_rs_context_change(HGLRC context)
 {
+    g_perf_rs_units_known=0;
     if (!context || !g_perf_rs_context || context==g_perf_rs_context) return;
     if (g_perf_rs_context) {
         /* Switching share groups cannot preserve this metadata. Disable the
@@ -1400,6 +1502,7 @@ static void perf_rs_context_change(HGLRC context)
 
 static void perf_rs_context_deleted(HGLRC context)
 {
+    g_perf_rs_units_known=0;
     if (context!=g_perf_rs_context) return;
     g_perf_regular_samplers_on=0; g_perf_rs_context=NULL;
     for (unsigned i=0;i<65536;i++) {
@@ -1503,6 +1606,7 @@ static void perf_rs_release_handle_slot(unsigned i)
 
 void WINAPI perf_rs_delete_textures(GLsizei count, const GLuint *textures)
 {
+    if (count>0) g_perf_rs_units_known=0;
     typedef void (WINAPI *fn_t)(GLsizei,const GLuint *);
     static fn_t real;
     if (!real) real=(fn_t)perf_rs_proc("glDeleteTextures");
@@ -1516,6 +1620,7 @@ void WINAPI perf_rs_delete_textures(GLsizei count, const GLuint *textures)
 }
 static void WINAPI perf_rs_delete_samplers(GLsizei count, const GLuint *samplers)
 {
+    if (count>0) g_perf_rs_units_known=0;
     typedef void (WINAPI *fn_t)(GLsizei,const GLuint *);
     static fn_t real;
     if (!real) real=(fn_t)trace_resolve("glDeleteSamplers");
@@ -1591,9 +1696,42 @@ static void WINAPI perf_rs_tex_buffer_range(GLenum target, GLenum format, GLuint
     perf_rs_upload_gpu_target(0x8C2A,buffer);
     if (real) real(target,format,buffer,offset,size);
 }
+static void WINAPI perf_rs_bind_sampler(GLuint unit, GLuint sampler)
+{
+    static void (WINAPI *real)(GLuint,GLuint);
+    if (!real) real=(__typeof__(real))trace_resolve("glBindSampler");
+    perf_rs_invalidate_units(unit,1);
+    if (real) real(unit,sampler);
+}
+
+static void WINAPI perf_rs_bind_samplers(GLuint first, GLsizei count, const GLuint *samplers)
+{
+    static void (WINAPI *real)(GLuint,GLsizei,const GLuint *);
+    if (!real) real=(__typeof__(real))trace_resolve("glBindSamplers");
+    perf_rs_invalidate_units(first,count);
+    if (real) real(first,count,samplers);
+}
+
+void WINAPI perf_rs_pop_attrib(void)
+{
+    static void (WINAPI *real)(void);
+    static void (WINAPI *get)(GLenum,GLint *);
+    if (!real) real=(__typeof__(real))perf_rs_proc("glPopAttrib");
+    if (!get) get=(__typeof__(get))perf_rs_proc("glGetIntegerv");
+    g_perf_rs_units_known=0;
+    if (real) real();
+    /* GL_TEXTURE_BIT also restores the active texture selector. */
+    if (get) { GLint active=0; get(0x84E0,&active); g_active_texture_unit=(GLenum)active; }
+}
+
 static PROC perf_rs_wrapper(const char *name)
 {
 #define RS_WRAP(api, function) if (!strcmp(name,api)) return (PROC)function
+    RS_WRAP("glBindSampler",perf_rs_bind_sampler);
+    RS_WRAP("glBindSamplers",perf_rs_bind_samplers);
+    RS_WRAP("glPopAttrib",perf_rs_pop_attrib);
+    RS_WRAP("glActiveTextureARB",wrap_glActiveTexture);
+    RS_WRAP("glBindTextureEXT",wrap_glBindTexture);
     RS_WRAP("glBindBuffersBase",perf_rs_bind_buffers_base);
     RS_WRAP("glBindBuffersRange",perf_rs_bind_buffers_range);
     RS_WRAP("glTransformFeedbackBufferBase",perf_rs_feedback_buffer_base);

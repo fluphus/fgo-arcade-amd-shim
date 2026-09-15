@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release_id": "20260914-cache-pacing",
+  "release_id": "20260915-mapped-sampler-cache",
   "baseline": "baseline-20260914-60hz-pvp",
-  "renderer_commit": "44a20cb",
+  "renderer_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
   "architecture": "AMD64",
   "pacing_hz": 60,
   "configuration": "embedded",
@@ -12,14 +12,14 @@
   ],
   "other_resolutions": "Known rendering errors",
   "tested_gpu": "AMD Radeon RX 7900 XTX",
-  "performance_scope": "60 FPS throughout PVP on the tested GPU only",
+  "performance_scope": "User reports almost entirely 60 FPS in PVP on RX 7900 XTX, briefly about 57 FPS on servant switches; other GPUs and modes unverified",
   "compiler": "clang version 22.1.8 (https://github.com/llvm/llvm-project.git ca7933e47d3a3451d81e72ac174dcb5aa28b59d1)",
   "source_inventory": "source/release/source-files.json",
-  "created_at": "2026-09-14T21:39:28.191696+08:00",
-  "renderer_reference_sha256": "A85042D91EA60A3108F28DFAD4673265F2E1F2A402B252436E5D5757C368A0F0",
+  "created_at": "2026-09-15T20:57:46.614867+08:00",
+  "renderer_reference_sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA",
   "build_command": "x86_64-w64-mingw32-gcc.exe -O2 -shared -o opengl32.dll shim.c shim.def -lgdi32 -luser32",
   "packaged_dll_name": "game-patch/opengl32.dll",
-  "visual_status": "Baseline rendering confirmed by user; this update passed offline cache, draw-state, driver-rendering and pacing regressions.",
+  "visual_status": "Baseline rendering previously confirmed; this update passed offline sampler pixel, state and lifetime regressions. Latest user confirmation concerns PVP performance.",
   "files": [
     {
       "path": ".gitattributes",
@@ -35,31 +35,6 @@
       "path": "FgoAmdPatch.exe",
       "bytes": 16384,
       "sha256": "C0CB9995CD0A6275239DC7B53C5EA2CE88846AF8FA47975C46E6F35A539A1BAA"
-    },
-    {
-      "path": "LICENSE",
-      "bytes": 1085,
-      "sha256": "83D325A3A1110618AAC085850A187EA01F2734E86C1C4C9DA5AF11C74EBA075A"
-    },
-    {
-      "path": "README.en.md",
-      "bytes": 1338,
-      "sha256": "2AEE27754C1C6E2C1B9A68C4570A63905515A6B296F3EF73351F236324998C75"
-    },
-    {
-      "path": "README.ja.md",
-      "bytes": 1809,
-      "sha256": "A8F5436F251261821F6B8D6AE691D60C4858F7B3CD52E2DA325E6F4BE5D8D121"
-    },
-    {
-      "path": "README.md",
-      "bytes": 1338,
-      "sha256": "2AEE27754C1C6E2C1B9A68C4570A63905515A6B296F3EF73351F236324998C75"
-    },
-    {
-      "path": "README.zh-CN.md",
-      "bytes": 1318,
-      "sha256": "C1BF6AA85EC9AFA9FAB296FCFDDA460E8DC46B175FA80327F76BD95070D2AD8F"
     },
     {
       "path": "game-patch/amdcfg/amdOglpSettings.cfg",
@@ -78,13 +53,33 @@
     },
     {
       "path": "game-patch/opengl32.dll",
-      "bytes": 458240,
-      "sha256": "A85042D91EA60A3108F28DFAD4673265F2E1F2A402B252436E5D5757C368A0F0"
+      "bytes": 463872,
+      "sha256": "71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA"
     },
     {
-      "path": "source/README.md",
-      "bytes": 4562,
-      "sha256": "70EE961674BFB48173504FBC9AFDEB60FF1157B8660686C04A065F56EBB8B693"
+      "path": "LICENSE",
+      "bytes": 1085,
+      "sha256": "83D325A3A1110618AAC085850A187EA01F2734E86C1C4C9DA5AF11C74EBA075A"
+    },
+    {
+      "path": "README.en.md",
+      "bytes": 1371,
+      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+    },
+    {
+      "path": "README.ja.md",
+      "bytes": 1825,
+      "sha256": "67ABAB591BA4FE16618A7C5B90C767C64C02A603CFD97B74B9579AC5953FCE97"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1371,
+      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+    },
+    {
+      "path": "README.zh-CN.md",
+      "bytes": 1319,
+      "sha256": "E9229DB78A5CDC188D75139620BA731E95F748AE368E921642083B7837361B3C"
     },
     {
       "path": "source/battle_driver_errors.h",
@@ -168,13 +163,23 @@
     },
     {
       "path": "source/perf_emitter_header.h",
-      "bytes": 10702,
-      "sha256": "38660015E6FA62D3901E03B2643D150F150A18AA36D765D18CBE922065C62B0B"
+      "bytes": 10822,
+      "sha256": "D0B2641C6B5D125AF5DADCF0F38208762862B925DA1E208E2C6B9CFD89B93D1D"
+    },
+    {
+      "path": "source/perf_mapped_lifetime_audit.h",
+      "bytes": 4908,
+      "sha256": "87C360B5337B1B23781F776257F1DBB7E23B087C3EEA5782885342DBD8B62D04"
+    },
+    {
+      "path": "source/perf_mapped_read_cache.h",
+      "bytes": 3193,
+      "sha256": "BF7C65DF45EBDD5C025FBD1157A057F30E7262709C8139C2A61FF562CE16B3B0"
     },
     {
       "path": "source/perf_regular_samplers.h",
-      "bytes": 75770,
-      "sha256": "62019B6D1147D8C6E5519BF6762C5D4DEDE0BDA1DA394C265DFBE025216ADF01"
+      "bytes": 81485,
+      "sha256": "D98B58F2C5E40010540DDD53819245E3AA69531179D23A7185778416ACA55838"
     },
     {
       "path": "source/perf_sampler_uploads.h",
@@ -182,34 +187,14 @@
       "sha256": "31F31BA95EFCBA334E6DB799FB3AC9ABB54B32BAF53A94361A158FA8BCC683AC"
     },
     {
+      "path": "source/README.md",
+      "bytes": 5271,
+      "sha256": "FB8A5AB0DA1AA96326CDE4081D9E79C5300E6FEC068C6386BD06834B3C629ED8"
+    },
+    {
       "path": "source/release/embedded-profile.json",
       "bytes": 2298,
       "sha256": "D9FEF4C2821A6C2FBF93BC72DE9BEF4D9A3376464427BFEDD45AA9D860F779A7"
-    },
-    {
-      "path": "source/release/gui/Installer.cs",
-      "bytes": 14628,
-      "sha256": "C384E708666EBE9B5F272EFE3F40AC2DB3AF4EE17800D3B5237CBDC7C2624CD2"
-    },
-    {
-      "path": "source/release/gui/README.en.md",
-      "bytes": 1338,
-      "sha256": "2AEE27754C1C6E2C1B9A68C4570A63905515A6B296F3EF73351F236324998C75"
-    },
-    {
-      "path": "source/release/gui/README.ja.md",
-      "bytes": 1809,
-      "sha256": "A8F5436F251261821F6B8D6AE691D60C4858F7B3CD52E2DA325E6F4BE5D8D121"
-    },
-    {
-      "path": "source/release/gui/README.zh-CN.md",
-      "bytes": 1318,
-      "sha256": "C1BF6AA85EC9AFA9FAB296FCFDDA460E8DC46B175FA80327F76BD95070D2AD8F"
-    },
-    {
-      "path": "source/release/gui/SOURCE.md",
-      "bytes": 4562,
-      "sha256": "70EE961674BFB48173504FBC9AFDEB60FF1157B8660686C04A065F56EBB8B693"
     },
     {
       "path": "source/release/gui/app.manifest",
@@ -227,19 +212,44 @@
       "sha256": "F90F92283CDB802C807D417E587398A41F65E7414B8AF49243255F0F6C94B87B"
     },
     {
+      "path": "source/release/gui/Installer.cs",
+      "bytes": 14628,
+      "sha256": "C384E708666EBE9B5F272EFE3F40AC2DB3AF4EE17800D3B5237CBDC7C2624CD2"
+    },
+    {
+      "path": "source/release/gui/README.en.md",
+      "bytes": 1371,
+      "sha256": "EA00D279AC2171363373506F4459428CBF338B624CE075060922F8F12A032185"
+    },
+    {
+      "path": "source/release/gui/README.ja.md",
+      "bytes": 1825,
+      "sha256": "67ABAB591BA4FE16618A7C5B90C767C64C02A603CFD97B74B9579AC5953FCE97"
+    },
+    {
+      "path": "source/release/gui/README.zh-CN.md",
+      "bytes": 1319,
+      "sha256": "E9229DB78A5CDC188D75139620BA731E95F748AE368E921642083B7837361B3C"
+    },
+    {
+      "path": "source/release/gui/SOURCE.md",
+      "bytes": 5271,
+      "sha256": "FB8A5AB0DA1AA96326CDE4081D9E79C5300E6FEC068C6386BD06834B3C629ED8"
+    },
+    {
       "path": "source/release/install.ps1",
       "bytes": 7389,
       "sha256": "77FEDFC46D2988C7DFA4166F42CA6053D9EA7F87ECFD35AB4B8871E9EE41456D"
     },
     {
       "path": "source/release/package-gui.ps1",
-      "bytes": 9749,
-      "sha256": "6D93A2ED90593F9040D415EDF9DDD492A421AA27C29FA31938A0DCC6110AAB73"
+      "bytes": 9921,
+      "sha256": "0289F689EBEC51FA00D6D13E11E0E7CD872940B3A9E881C44841DFC67B3B096C"
     },
     {
       "path": "source/release/source-files.json",
-      "bytes": 2424,
-      "sha256": "D84AD28E24817CAE695E991E20D70112A9400196DADEA0B432BF3CED8D9D4DE3"
+      "bytes": 2567,
+      "sha256": "1611C82C73ABBBA5EB2452C558E4F539FCB86556FF75304105AB0B10AC8A5308"
     },
     {
       "path": "source/servant_dissolve_capture.h",
@@ -248,13 +258,13 @@
     },
     {
       "path": "source/shim.c",
-      "bytes": 1607648,
-      "sha256": "C401BFDAB9470A1A2DDCEF07E2BEC5BF966806B11788AFA6954830A781486035"
+      "bytes": 1611014,
+      "sha256": "5255806D0581BCDD4A4F089F813BE845760A0039D2CB9BBE103000BC5999E368"
     },
     {
       "path": "source/shim.def",
-      "bytes": 16327,
-      "sha256": "E234E79903F8A6895D06940ADF7E51134763C1B20CC88942DE4FCCE95A0CD8BE"
+      "bytes": 16302,
+      "sha256": "44851B8946C9F493202F09381A9EFB002C127AE95AB7FC87CAE1FAA9AE5FBC88"
     },
     {
       "path": "source/shim_profile.h",
@@ -263,8 +273,8 @@
     },
     {
       "path": "source/tests/battle_counter_live.py",
-      "bytes": 5217,
-      "sha256": "6754DF66D3647F1E963E64AED030D7E750FFE5DBBA1F60FF7D5BB92DF14EE700"
+      "bytes": 6924,
+      "sha256": "3E0120F891CE1F3777F40FB1FFAB5EAB5396123DB306F0B98C8111CD2F50FA21"
     },
     {
       "path": "source/tests/battle_cpu_sample.c",
@@ -377,14 +387,24 @@
       "sha256": "0D5EC197D7207101CDEB0DCA22C4B2AF41A376B3D46F9212245BBFD8331E4182"
     },
     {
+      "path": "source/tests/mapped_read_cache_driver_test.py",
+      "bytes": 5068,
+      "sha256": "99F486F5A84A456E79DD4720FB3888E45322B189386F720E418BBDD6A3B5531B"
+    },
+    {
+      "path": "source/tests/mapped_read_cache_wrapper.c",
+      "bytes": 4277,
+      "sha256": "20008BCF664E2C758B681D9BA22398BF6997322751D3DD6253FE94E17FF65A3B"
+    },
+    {
       "path": "source/tests/mapped_sampler_read_bench.c",
-      "bytes": 2642,
-      "sha256": "BE351DC7FCFBE43BAC62B5E939664DFE3CF91F8DEB73A2C016D5E8188A841CD9"
+      "bytes": 6507,
+      "sha256": "2B9AE0CE6F9AF863EFB5F047B752F9E15D974FBD99CF0133B1B5192E23AB95E5"
     },
     {
       "path": "source/tests/mapped_sampler_read_bench.py",
-      "bytes": 4425,
-      "sha256": "25D52EE4C42FE4C50E70E29BF633DC7E1A2CDE4D016749F336008D3162EFF1AF"
+      "bytes": 9208,
+      "sha256": "7B816D73146AF5E1890165938F82C63B925C6309FED990D32347B71E594E3A40"
     },
     {
       "path": "source/tests/per_emitter_pointer_test.c",
@@ -398,13 +418,13 @@
     },
     {
       "path": "source/tests/regular_sampler_driver_test.py",
-      "bytes": 52200,
-      "sha256": "046C70CD407772FA290E13664562BCE45C18AFB1B37CCA0454A9C584A4115098"
+      "bytes": 57290,
+      "sha256": "F98898BC3E6CB7FFA2DABF4D1E0190244AF8B3F776C542F94BF2EBF6C40C8B66"
     },
     {
       "path": "source/tests/regular_sampler_wrapper.c",
-      "bytes": 17726,
-      "sha256": "AF3DE420F90B3323FF501263532BAB65C4C35F3FB02B372EC2B737113801ADF4"
+      "bytes": 18300,
+      "sha256": "3FE37A54D72FC16E3EDE4CDE312E88CA748025A7C1CB4859B7E9C14D55784C6E"
     },
     {
       "path": "source/tests/release_binary_compare.py",
@@ -453,8 +473,8 @@
     },
     {
       "path": "source/tools/start-capture.ps1",
-      "bytes": 5497,
-      "sha256": "90F5549B707F169D0C7F71870AE31145CAA756CDCF08DFE7CCEEABB706680596"
+      "bytes": 5904,
+      "sha256": "21EB253107E09747FB1AC20936541D978099230326D4BC806833D1A25A57B96A"
     },
     {
       "path": "source/tools/stop-capture.ps1",
@@ -487,6 +507,21 @@
       "sha256": "EFC025AB8B676F0FA6003300D9AD7BCDEBA8AB0A80FBCDC056F2286FE18CB383"
     },
     {
+      "path": "verification/mapped-cache-benchmark.json",
+      "bytes": 773,
+      "sha256": "F48B5B31A74B5D1068BA047AAEA1755AFD95F0FA11B4E16C6B5A487BF48ED4CC"
+    },
+    {
+      "path": "verification/mapped-cache-driver-exposed.json",
+      "bytes": 831,
+      "sha256": "51FB24E40CA2E645A99C2F141E4E8A7BA383E41F1F9A140EA6C4F6DB4C2DE520"
+    },
+    {
+      "path": "verification/mapped-cache-production.json",
+      "bytes": 253,
+      "sha256": "CCC8B04E1F3FD3AD19ADF896D162F0E87A5AB886EAD45424C36CF9A3BFA6D85E"
+    },
+    {
       "path": "verification/mapped-memory.json",
       "bytes": 416,
       "sha256": "903B7CDB4B1DB4D4E6AF6DA3D9629CFC258671D8D7E25D0F6C448225A9800E87"
@@ -498,24 +533,26 @@
     },
     {
       "path": "verification/regular-sampler-driver.json",
-      "bytes": 30481,
-      "sha256": "9E468560F698555CF2FFCB7DA7BB5064D2E8E132179AC1E72400DA257D41C64F"
+      "bytes": 31882,
+      "sha256": "26E57EC9A37B6B90C3B123352EAC2FCE5384DFD6A98FB29E3B71394E574EA538"
     },
     {
       "path": "verification/release-audit.json",
-      "bytes": 757,
-      "sha256": "6FF4DC48C50391E0FAFBE85161646333BA1C5DFF69099F335016AA609ECF9ABB"
+      "bytes": 1554,
+      "sha256": "BA89FF6686EBF58A346A15BAD9C3DC24C870A4FAAF1E06665EEDF3305CDA209D"
     },
     {
       "path": "verification/summary.json",
-      "bytes": 457,
-      "sha256": "38D624DB854F78FDA2B545C97F8FFCCA644742CB637171815FE45658D7FEACB1"
+      "bytes": 576,
+      "sha256": "EB24A0CA66400164574E6635DFE597CDF33ED19942A00C761E95A821A3D65CA7"
     }
   ],
-  "source_revision": "baseline-20260914-60hz-pvp",
+  "source_revision": "838e5710a3a54aa947bf8867ce878c96274709c0",
   "changes": [
-    "Share shader translation cache across object IDs",
-    "Use a high-resolution timer at the existing 60 Hz frame boundary",
-    "Remove the program-200 diagnostic front-buffer readback"
+    "Coalesce nearby mapped sampler fields and batch fresh-read fences within a draw",
+    "Cache private sampler-unit state between draws",
+    "Avoid vertex replay invalidation for UBO and element address updates",
+    "Cache explicit-flush persistent sampler reads until frame or publication boundaries",
+    "Include the updated sampler, AMD cache regression and trilingual instructions"
   ]
 }

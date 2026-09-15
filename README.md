@@ -1,12 +1,12 @@
-# FGO Arcade AMD Patch · 2026.09.14
+# FGO Arcade AMD Patch · 2026.09.15
 
 [中文](README.zh-CN.md) | [日本語](README.ja.md)
 
-Only **AMD Radeon RX 7900 XTX** has been tested. The performance guarantee is limited to **60 FPS throughout PVP battles on that GPU**. Other GPUs, PVE and loading screens have no performance guarantee.
+Only **AMD Radeon RX 7900 XTX** has been tested. In the latest PVP test, performance stayed at **60 FPS for almost the entire match**, with brief dips to about **57 FPS when switching servants**. Other GPUs, PVE and loading screens have no performance guarantee.
 
 **Only 1920×1080 (1080p) is supported. Other resolutions have known rendering errors. The patch has a built-in 60 FPS cap.**
 
-This update improves shader-cache reuse and frame pacing. The first launch after updating may rebuild the shader cache.
+This update reduces repeated buffer reads and draw-state work to improve battle performance.
 
 ## Install and Restore
 

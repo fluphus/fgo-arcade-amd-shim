@@ -706,6 +706,67 @@ def main():
         raw[:] = saved_material
         shadow_note(block_buffers[material['block']], len(raw), C.c_char_p(bytes(raw)))
         report['fallback_preserves_state'] = True
+        if hasattr(wrapper, 'TestRegularBindingProc'):
+            binding_proc = SystemGL.api(wrapper, 'TestRegularBindingProc', P, C.c_char_p)
+            def hook(name, *params):
+                address = binding_proc(name.encode())
+                assert address, name
+                return C.WINFUNCTYPE(None, *params)(address)
+            bind_unit = hook('glBindTextureUnit', U, U)
+            bind_many = hook('glBindTextures', U, I, P)
+            bind_multi = hook('glBindMultiTextureEXT', U, U, U)
+            bind_sampler = hook('glBindSampler', U, U)
+            bind_samplers = hook('glBindSamplers', U, I, P)
+            active_unit = hook('glActiveTexture', U)
+            bind_legacy = hook('glBindTexture', U, U)
+            target_bind = SystemGL.api(wrapper, 'TestRegularTargetBind', I, I)
+            saved_units = []
+            unit_targets = ((0x8069, 0xDE1), (0x806A, 0x806F), (0x8514, 0x8513),
+                            (0x8C1D, 0x8C1A), (0x8C2C, 0x8C2A))
+            for unit in range(63, 97):
+                for binding, target in unit_targets + ((0x8919, 0),):
+                    value = I()
+                    fn('glGetIntegeri_v', None, U, U, P)(binding, unit, C.byref(value))
+                    saved_units.append((unit, target, value.value))
+            report['private_unit_mutations'] = []
+            for direct in (1, 0):
+                target_bind(direct)
+                seed_state(programs[0])
+                assert integrated_raw(programs[0], 1) == 1
+                test_tex, test_sampler = U(), U()
+                fn('glCreateTextures', None, U, I, P)(0xDE1, 1, C.byref(test_tex))
+                fn('glCreateSamplers', None, I, P)(1, C.byref(test_sampler))
+                def verify_mutation(label, mutate):
+                    print('private unit mutation', direct, label, flush=True)
+                    mutate()
+                    expected_state = state()
+                    # Do not reseed: invalidation must come from the real hooks.
+                    assert integrated_raw(programs[0], 2) == 2
+                    assert state() == expected_state, (direct, label)
+                    check(label)
+                    report['private_unit_mutations'].append([direct, label])
+                verify_mutation('texture unit', lambda: [bind_unit(u, test_tex) for u in range(64, 96)])
+                verify_mutation('clear all targets', lambda: [bind_unit(u, 0) for u in range(64, 96)])
+                verify_mutation('multi texture range', lambda: bind_many(63, 34, (U * 34)(*[test_tex.value] * 34)))
+                verify_mutation('null texture range', lambda: bind_many(63, 34, None))
+                verify_mutation('explicit cube target', lambda: [bind_multi(0x84C0 + u, 0x8513, textures[0x8B60][0]) for u in range(64, 96)])
+                verify_mutation('legacy texture', lambda: [(active_unit(0x84C0 + u), bind_legacy(0xDE1, test_tex)) for u in range(64, 96)])
+                verify_mutation('sampler unit', lambda: [bind_sampler(u, test_sampler) for u in range(64, 96)])
+                verify_mutation('null sampler range', lambda: bind_samplers(63, 34, None))
+                verify_mutation('sampler range', lambda: bind_samplers(63, 34, (U * 34)(*[test_sampler.value] * 34)))
+                fn('glPushAttrib', None, U)(0x40000)  # GL_TEXTURE_BIT
+                verify_mutation('inside attribute stack', lambda: [bind_unit(u, 0) for u in range(64, 96)])
+                verify_mutation('pop texture attributes', hook('glPopAttrib'))
+                verify_mutation('delete bound texture', lambda: hook('glDeleteTextures', I, P)(1, C.byref(test_tex)))
+                verify_mutation('delete bound sampler', lambda: hook('glDeleteSamplers', I, P)(1, C.byref(test_sampler)))
+                # Restore fixture sampler bindings before the lifetime tests.
+                for u in range(64, 96): bind_sampler(u, sentinel)
+                disable_cache()
+            target_bind(1)
+            for unit, target, name in saved_units:
+                if target: bind_multi(0x84C0 + unit, target, name)
+                else: bind_sampler(unit, name)
+            active_unit(0x84C0 + 37)
         if args.before:
             previous = C.WinDLL(str(args.before.resolve()))
             previous_api = lambda name, result, *params: SystemGL.api(previous, name, result, *params)
@@ -720,6 +781,15 @@ def main():
             for name, unit in original_units.items():
                 previous_api('TestRegularSampler', None, U, I, I)(programs[0], reflection[0][name]['location'], unit)
             old_run = previous_api('TestRegularDraw', I, U, U)
+            assert old_run(programs[0], 1) == 1  # Initialize the lazy GL API first.
+            old_raw = old_run
+            old_seed = previous_api('TestRegularSeedState', None, U)
+            old_disable = previous_api('TestRegularDisableCache', None)
+            def old_run(program, count):
+                old_seed(program)
+                result = old_raw(program, count)
+                old_disable()
+                return result
             saved = state()
             draw(4, 0, 3); expected = read_image()
             assert old_run(programs[0], 1) == 1
@@ -728,21 +798,31 @@ def main():
             assert read_image() == expected and state() == saved
             timings = {'before': [], 'after': []}
             fn('glEnable', None, U)(0x8C89)
-            for run in (old_run, integrated): assert run(programs[0], 32) == 32
+            for run in (old_run, integrated): assert run(programs[0], 2000) == 2000
             finish()
-            for repeat in range(7):
-                for name, run in (('before', old_run), ('after', integrated)):
+            for repeat in range(8):
+                order = (('before', old_run), ('after', integrated))
+                if repeat % 2: order = tuple(reversed(order))
+                for name, run in order:
                     start = time.perf_counter()
-                    assert run(programs[0], 2000) == 2000
+                    assert run(programs[0], 20000) == 20000
                     finish()
                     timings[name].append((time.perf_counter() - start) * 1000)
             fn('glDisable', None, U)(0x8C89)
-            report['preparation_ms_2000_draws'] = timings
+            report['preparation_ms_20000_draws'] = timings
             report['preparation_median_ms'] = {k: statistics.median(v) for k, v in timings.items()}
+            seed_state(programs[0])
+            assert integrated_raw(programs[0], 1) == 1
             counters = (Q * 10)()
             assert SystemGL.api(wrapper, 'TestRegularMeasure', I, U, U, P)(programs[0], 1, counters) == 1
             report['warm_calls'] = dict(zip(('get', 'get_i', 'get_i64', 'get_tex', 'active',
                 'bind_tex', 'bind_sampler', 'use', 'u1', 'bind_multi_tex'), counters))
+            disable_cache()
+            old_seed(programs[0])
+            assert old_raw(programs[0], 1) == 1
+            assert previous_api('TestRegularMeasure', I, U, U, P)(programs[0], 1, counters) == 1
+            report['before_warm_calls'] = dict(zip(report['warm_calls'], counters))
+            old_disable()
             check('previous preparation comparison')
         runner = C.WinDLL(str((args.runner or ROOT / 'build/staged-upload-20260911/residency_benchmark.dll').resolve()))
         run = SystemGL.api(runner, 'TestResidentDraws', C.c_double, P, U)

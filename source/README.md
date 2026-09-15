@@ -72,6 +72,21 @@ Results and compiler logs go to `build/release-fixtures`. Microbenchmarks are
 not game-FPS measurements. The bundled regression inputs are selected captured
 shader text, not a complete battle replay.
 
+The mapped sampler cache regression can be run directly when validating the
+current renderer source. It checks publication boundaries, GPU-exposed maps,
+buffer writes, unmap/remap and coherent mappings on an AMD OpenGL context:
+
+```powershell
+$out = '.\build\mapped-cache-driver'
+New-Item -ItemType Directory -Force $out | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\mapped_read_cache_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+python .\tests\mapped_read_cache_driver_test.py "$out"
+```
+
+The production build does not enable the lifetime audit probe. The cache
+counters are available to the optional sampler for diagnosing hit and miss
+rates; they are not required for normal installation.
+
 ## Reuse an Existing Shader Cache
 
 Revision 2 shares translated shaders across object IDs. To reuse a previous

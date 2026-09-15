@@ -1123,6 +1123,7 @@ static void perf_rs_indirect_batch_begin(GLsizei count);
 static void perf_rs_indirect_batch_end(void);
 static PROC perf_rs_wrapper(const char *name);
 static void perf_rs_context_change(HGLRC context);
+static void perf_rs_invalidate_units(GLuint first, GLsizei count);
 static void bindless_sampler_handle_cache_invalidate(void);
 static void bindless_sampler_handle_cache_forget_texture(GLsizei count,
                                                          const GLuint *textures);
@@ -1306,6 +1307,15 @@ static void perf_mapped_flush_shadow_flush(bindless_map_rec *m,
                                            GLintptr offset, GLsizeiptr length);
 static void perf_mapped_flush_shadow_gpu_exposed(GLuint buffer);
 static void perf_mapped_flush_shadow_context_reset(void);
+
+#ifdef FGO_MAPPED_LIFETIME_AUDIT
+static void perf_mapped_audit_boundary(void);
+static void perf_mapped_audit_flush(bindless_map_rec *, GLintptr, GLsizeiptr);
+#endif
+static void perf_mapped_read_boundary(void);
+static void perf_mapped_read_flush(bindless_map_rec *, GLintptr, GLsizeiptr);
+#define PERF_MAPPED_READ_BOUNDARY() perf_mapped_read_boundary()
+#define PERF_MAPPED_READ_FLUSH(m, off, len) perf_mapped_read_flush(m, off, len)
 
 static bindless_map_rec *bindless_map_slot(GLuint buffer, void *ptr)
 {
@@ -4583,7 +4593,13 @@ static void WINAPI stub_glBufferAddressRangeNV(GLenum pname, GLuint index, GLuin
         changed = 1;
     }
     if (changed) {
-        g_bindless_state_replay_cache_valid = 0;
+        /* The replay cache mirrors vertex attribute setup only.  UBO address
+           ranges and the element range are consumed by their own paths and
+           are not part of bindless_unified_replay_state_matches(); keep the
+           vertex replay valid across those updates. */
+        if (pname != GL_UNIFORM_BUFFER_ADDRESS_NV &&
+            pname != GL_ELEMENT_ARRAY_ADDRESS_NV)
+            g_bindless_state_replay_cache_valid = 0;
         g_bindless_state_replay_nv_range_updates++;
     } else {
         g_bindless_state_replay_nv_range_redundant++;
@@ -6385,6 +6401,7 @@ static void title_persist_mark_tex(GLuint tex)
 
 void WINAPI wrap_glBindTexture(GLenum target, GLuint texture)
 {
+    perf_rs_invalidate_units(g_active_texture_unit-0x84C0,1);
     static glBindTexture_t real;
     if (!real) real = (glBindTexture_t)GetProcAddress(g_real, "glBindTexture");
     title_persist_mark_tex(texture);
@@ -6414,6 +6431,7 @@ void WINAPI wrap_glBindTexture(GLenum target, GLuint texture)
 
 static void WINAPI wrap_glBindTextures(GLuint first, GLsizei count, const GLuint *textures)
 {
+    perf_rs_invalidate_units(first,count);
     static glBindTextures_t real;
     if (!real) real = (glBindTextures_t)trace_resolve("glBindTextures");
     if (textures) {
@@ -6455,6 +6473,7 @@ static void WINAPI wrap_glBindTextures(GLuint first, GLsizei count, const GLuint
 
 static void WINAPI wrap_glBindTextureUnit(GLuint unit, GLuint texture)
 {
+    perf_rs_invalidate_units(unit,1);
     static glBindTextureUnit_t real;
     if (!real) real = (glBindTextureUnit_t)trace_resolve("glBindTextureUnit");
     title_persist_mark_tex(texture);
@@ -6474,6 +6493,7 @@ static void WINAPI wrap_glBindTextureUnit(GLuint unit, GLuint texture)
 
 static void WINAPI wrap_glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint texture)
 {
+    perf_rs_invalidate_units(texunit-0x84C0,1);
     api_census_symbol_call("glBindMultiTextureEXT", API_GROUP_OTHER_EXTENSION);
     title_persist_mark_tex(texture);
     static glBindMultiTextureEXT_t real;
@@ -6587,6 +6607,7 @@ static void WINAPI wrap_glTextureBarrier(void)
 
 static void WINAPI wrap_glMemoryBarrier(GLbitfield barriers)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glMemoryBarrier_t real;
     GLbitfield submitted = barriers;
     if (!real) real = (glMemoryBarrier_t)trace_resolve("glMemoryBarrier");
@@ -6624,6 +6645,50 @@ static void WINAPI wrap_glMemoryBarrier(GLbitfield barriers)
             g_tile_light_flow_probe_producer_pending = 0;
         }
     }
+}
+
+static void WINAPI wrap_glMemoryBarrierByRegion(GLbitfield barriers)
+{
+    static glMemoryBarrier_t real;
+    if (!real) real=(glMemoryBarrier_t)trace_resolve("glMemoryBarrierByRegion");
+    if (real) real(barriers);
+    PERF_MAPPED_READ_BOUNDARY();
+}
+
+void WINAPI wrap_glFinish(void)
+{
+    static glFinish_t real;
+    if (!real) real=(glFinish_t)trace_resolve("glFinish");
+    if (real) real();
+    PERF_MAPPED_READ_BOUNDARY();
+}
+
+void WINAPI wrap_glFlush(void)
+{
+    static glFlush_t real;
+    if (!real) real=(glFlush_t)trace_resolve("glFlush");
+    if (real) real();
+    PERF_MAPPED_READ_BOUNDARY();
+}
+
+static GLenum WINAPI wrap_glClientWaitSync(GLsync sync, GLbitfield flags,
+                                          GLuint64 timeout)
+{
+    typedef GLenum (WINAPI *wait_t)(GLsync, GLbitfield, GLuint64);
+    static wait_t real;
+    if (!real) real=(wait_t)trace_resolve("glClientWaitSync");
+    GLenum result=real ? real(sync,flags,timeout) : 0x911D /* GL_WAIT_FAILED */;
+    PERF_MAPPED_READ_BOUNDARY();
+    return result;
+}
+
+static void WINAPI wrap_glWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeout)
+{
+    typedef void (WINAPI *wait_t)(GLsync, GLbitfield, GLuint64);
+    static wait_t real;
+    if (!real) real=(wait_t)trace_resolve("glWaitSync");
+    if (real) real(sync,flags,timeout);
+    PERF_MAPPED_READ_BOUNDARY();
 }
 
 static void WINAPI wrap_glTextureBarrierNV(void)
@@ -6972,6 +7037,8 @@ static int perf_cpu_shadow_copy(GLuint buffer, GLintptr offset,
 }
 
 #include "perf_sampler_uploads.h"
+#include "perf_mapped_lifetime_audit.h"
+#include "perf_mapped_read_cache.h"
 #include "perf_emitter_header.h"
 
 /* A bounded, range-valid CPU copy for the game's noncoherent persistent
@@ -7264,6 +7331,7 @@ static void perf_mapped_flush_shadow_gpu_exposed(GLuint buffer)
 
 static void perf_mapped_flush_shadow_context_reset(void)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     for (unsigned i = 0; i < PERF_MAPPED_FLUSH_SHADOW_CAP; i++)
         if (g_perf_mapped_flush_shadows[i].active)
             perf_mapped_flush_shadow_release(&g_perf_mapped_flush_shadows[i]);
@@ -9290,6 +9358,7 @@ static void trace_buf_size(GLuint buffer, GLsizeiptr size)
 
 static void trace_buf_write(GLuint buffer)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     if (buffer > 0 && buffer < (1u << 20)) g_buffer_write_serial[buffer]++;
 }
 
@@ -10281,6 +10350,7 @@ static void * WINAPI wrap_glMapNamedBufferRange(GLuint buffer, GLintptr offset, 
 
 static GLboolean WINAPI wrap_glUnmapBuffer(GLenum target)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glUnmapBuffer_t real;
     if (!real) real = (glUnmapBuffer_t)trace_resolve("glUnmapBuffer");
     GLuint buf = (target < 65536) ? g_bound_buffer[target] : 0;
@@ -10311,6 +10381,7 @@ static GLboolean WINAPI wrap_glUnmapBuffer(GLenum target)
 
 static GLboolean WINAPI wrap_glUnmapNamedBuffer(GLuint buffer)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glUnmapNamedBuffer_t real;
     if (!real) real = (glUnmapNamedBuffer_t)trace_resolve("glUnmapNamedBuffer");
     bindless_map_rec *m = bindless_map_find(buffer);
@@ -10345,6 +10416,7 @@ static void WINAPI wrap_glFlushMappedBufferRange(GLenum target, GLintptr offset,
     GLuint buf = (target < 65536) ? g_bound_buffer[target] : 0;
 
     bindless_map_rec *m = bindless_map_find(buf);
+    PERF_MAPPED_READ_FLUSH(m, offset, length);
     if (m) {
         hair_permaterial_write_probe("glFlushMappedBufferRange", m->buffer,
                                      m->offset + offset, length,
@@ -10368,6 +10440,7 @@ static void WINAPI wrap_glFlushMappedNamedBufferRange(GLuint buffer, GLintptr of
     if (!real) real = (glFlushMappedNamedBufferRange_t)trace_resolve("glFlushMappedNamedBufferRange");
 
     bindless_map_rec *m = bindless_map_find(buffer);
+    PERF_MAPPED_READ_FLUSH(m, offset, length);
     if (m) {
         hair_permaterial_write_probe("glFlushMappedNamedBufferRange", m->buffer,
                                      m->offset + offset, length,
@@ -10389,6 +10462,7 @@ static void WINAPI wrap_glCopyBufferSubData(GLenum readTarget, GLenum writeTarge
                                             GLintptr readOffset, GLintptr writeOffset,
                                             GLsizeiptr size)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glCopyBufferSubData_t real;
     GLuint rbuf;
     GLuint wbuf;
@@ -10405,6 +10479,7 @@ static void WINAPI wrap_glCopyNamedBufferSubData(GLuint readBuffer, GLuint write
                                                  GLintptr readOffset, GLintptr writeOffset,
                                                  GLsizeiptr size)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glCopyNamedBufferSubData_t real;
     if (!real) real = (glCopyNamedBufferSubData_t)trace_resolve("glCopyNamedBufferSubData");
     perf_cpu_shadow_invalidate(writeBuffer);
@@ -17253,6 +17328,7 @@ static void WINAPI wrap_glGenBuffers(GLsizei n, GLuint *buffers)
 
 static void WINAPI wrap_glDeleteBuffers(GLsizei n, const GLuint *buffers)
 {
+    PERF_MAPPED_READ_BOUNDARY();
     static glDeleteBuffers_t real;
     if (!real) real = (glDeleteBuffers_t)trace_resolve("glDeleteBuffers");
     if (n > 0 && buffers) glog("BUF glDeleteBuffers n=%d first=%u\n", n, buffers[0]);
@@ -18254,6 +18330,11 @@ static PROC find_hook(const char *name)
     if (strcmp(name, "glBindMultiTextureEXT") == 0) return (PROC)wrap_glBindMultiTextureEXT;
     if (strcmp(name, "glTextureBarrier") == 0) return (PROC)wrap_glTextureBarrier;
     if (strcmp(name, "glMemoryBarrier") == 0) return (PROC)wrap_glMemoryBarrier;
+    if (strcmp(name, "glMemoryBarrierByRegion") == 0) return (PROC)wrap_glMemoryBarrierByRegion;
+    if (strcmp(name, "glFinish") == 0) return (PROC)wrap_glFinish;
+    if (strcmp(name, "glFlush") == 0) return (PROC)wrap_glFlush;
+    if (strcmp(name, "glClientWaitSync") == 0) return (PROC)wrap_glClientWaitSync;
+    if (strcmp(name, "glWaitSync") == 0) return (PROC)wrap_glWaitSync;
     if (strcmp(name, "glEnableVertexArrayEXT") == 0) return (PROC)wrap_glEnableVertexArrayEXT;
     if (strcmp(name, "glDisableVertexArrayEXT") == 0) return (PROC)wrap_glDisableVertexArrayEXT;
     if (strcmp(name, "glDepthBoundsEXT") == 0) return (PROC)wrap_glDepthBoundsEXT;

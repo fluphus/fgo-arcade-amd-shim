@@ -1,16 +1,17 @@
 {
-  "renderer_commit": "520216e64580d32fbf0cbdeef595ecedcf85887f",
-  "renderer_sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76",
-  "source_sha256": "9F77A6B753EDF33A829C8245E268049FC89CF6A8E4A182468EC67F32B4EF31A4",
+  "renderer_commit": "2a180cb86ba106d187181bde134e294f79678e9e",
+  "renderer_sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6",
+  "source_sha256": "79D10362716E47FA3A0238AE4B6ACA95B79CAA53DDA01120F056BCCF8008E357",
   "packaged_dll_byte_identical_to_tested_and_deployed": true,
   "packaged_source_rebuild_matches_except_pe_metadata": true,
   "compiler_warnings": 24,
   "compiler_errors": 0,
   "production_lifetime_audit_compiled_out": true,
   "current_offline_regressions": [
-    "compute-pointer-fixed.json"
+    "trail-vertex.json",
+    "texcoord-rollback.json"
   ],
-  "current_production_verification": "compute-pointer-production.json",
+  "current_production_verification": "trail-robustness-production.json",
   "gui_installer_and_native_sampler_unchanged_from_public_commit": "1fbf3e4a2f27ab19235493e0ee7c0c867605a6d2",
   "inherited_validation": [
     "summary.json",
@@ -23,7 +24,11 @@
     "mapped-cache-production.json",
     "mapped-cache-driver-exposed.json",
     "mapped-cache-benchmark.json",
-    "regular-sampler-driver.json"
+    "regular-sampler-driver.json",
+    "compute-pointer-fixed.json",
+    "compute-pointer-production.json",
+    "trail-particle-layouts.json",
+    "trail-background-layouts.json"
   ],
   "external_marker_files_required": false,
   "capture_layer_packaged": false,
@@ -34,7 +39,7 @@
     "result": "Almost entirely 60 FPS, minimum observed about 57 FPS during servant switches",
     "instrumented_latest_run": false
   },
-  "visual_status": "User confirmed the London white-flash fix in gameplay on RX 7900 XTX.",
+  "visual_status": "User confirmed the blue ranged-attack panels and earlier London white flashes are fixed. The added texcoord rollback passed offline AMD regressions; external-client startup remains unverified.",
   "renderer_base_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
-  "renderer_patch_scope": "Compute-dispatch pointer replay only"
+  "renderer_patch_scope": "Trail shared vertex binding and rejected texcoord patch rollback, retaining the previous London compute fix"
 }

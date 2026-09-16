@@ -1,0 +1,27 @@
+{
+  "renderer_commit": "2a180cb86ba106d187181bde134e294f79678e9e",
+  "renderer_sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6",
+  "source_sha256": "79D10362716E47FA3A0238AE4B6ACA95B79CAA53DDA01120F056BCCF8008E357",
+  "architecture": "AMD64",
+  "exports": 368,
+  "compiler_warnings": 24,
+  "compiler_errors": 0,
+  "packaged_source_rebuild_matches_except_pe_metadata": true,
+  "packaged_dll_matches_tested_and_deployed": true,
+  "trail_regression": {
+    "result": "trail-vertex.json",
+    "vertices": 374,
+    "fixture": "source/tests/fixtures/trail",
+    "cases": 7,
+    "passed": true
+  },
+  "texcoord_regression": {
+    "result": "texcoord-rollback.json",
+    "unchanged_success_pixels": 5,
+    "cases": 13,
+    "restored_rejected_shaders": 8,
+    "passed": true
+  },
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "visual_status": "User confirmed the blue ranged-attack panels and earlier London white flashes are fixed. The added texcoord rollback passed offline AMD regressions; external-client startup remains unverified."
+}

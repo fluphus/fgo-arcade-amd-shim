@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "driver": "AMD Radeon RX 7900 XTX",
+  "vertices": 374,
+  "cases": [
+    {
+      "case": "legacy",
+      "selected": false,
+      "matches_requested_bytes": false,
+      "nonfinite_uv": 71
+    },
+    {
+      "case": "fixed",
+      "selected": true,
+      "matches_requested_bytes": true,
+      "nonfinite_uv": 0
+    },
+    {
+      "case": "cached",
+      "selected": true,
+      "matches_requested_bytes": true,
+      "nonfinite_uv": 0
+    },
+    {
+      "case": "relocated",
+      "selected": true,
+      "matches_requested_bytes": true,
+      "nonfinite_uv": 0
+    },
+    {
+      "case": "split",
+      "selected": false,
+      "matches_requested_bytes": false,
+      "nonfinite_uv": 71
+    },
+    {
+      "case": "other_stride",
+      "selected": false,
+      "matches_requested_bytes": false,
+      "nonfinite_uv": 82
+    },
+    {
+      "case": "other_offset",
+      "selected": false,
+      "matches_requested_bytes": false,
+      "nonfinite_uv": 79
+    }
+  ]
+}

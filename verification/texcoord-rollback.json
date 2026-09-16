@@ -1,0 +1,136 @@
+{
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "old_failure_control": false,
+  "cases": [
+    {
+      "name": "xy_narrow_4_to_2",
+      "accepted": true,
+      "linked": true,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "pixel": [
+        64,
+        191,
+        0,
+        255
+      ]
+    },
+    {
+      "name": "xyz_narrow_4_to_3",
+      "accepted": true,
+      "linked": true,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "pixel": [
+        64,
+        191,
+        128,
+        255
+      ]
+    },
+    {
+      "name": "xy_widen_2_to_4",
+      "accepted": true,
+      "linked": true,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "pixel": [
+        64,
+        191,
+        0,
+        255
+      ]
+    },
+    {
+      "name": "same_width",
+      "accepted": true,
+      "linked": true,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "pixel": [
+        64,
+        191,
+        128,
+        255
+      ]
+    },
+    {
+      "name": "z_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "xyz_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "w_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "rgb_alias_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "spaced_swizzle_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "index_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "whole_vector_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "macro_rejected",
+      "accepted": false,
+      "linked": false,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "compatible_program_reuses_restored_shader": true
+    },
+    {
+      "name": "inactive_z_accepted",
+      "accepted": true,
+      "linked": true,
+      "compiled": true,
+      "driver_equals_mirror": true,
+      "pixel": [
+        64,
+        191,
+        0,
+        255
+      ]
+    }
+  ],
+  "passed": true
+}

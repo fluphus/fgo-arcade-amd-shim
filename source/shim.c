@@ -13504,6 +13504,22 @@ static int flare_shared_vertex_layout(void)
     return 1;
 }
 
+/* CPU-generated trails pack float4 position/opacity and float4 UV in binding0.
+   NV slot1 can retain an unrelated model stream after the preceding draw. */
+static int trail_shared_vertex_layout(void)
+{
+    if (g_enabled_mask != 3 || !g_vbuf[0].set || g_vbuf[0].stride != 32)
+        return 0;
+    for (GLuint a = 0; a < 2; a++) {
+        if (!g_abind[a].set || g_abind[a].binding != 0 ||
+            !g_fmt[a].set || g_fmt[a].size != 4 ||
+            g_fmt[a].type != 0x1406 || g_fmt[a].normalized ||
+            g_fmt[a].is_int || g_fmt[a].relativeoffset != a * 16)
+            return 0;
+    }
+    return 1;
+}
+
 /* Preserve shared NV bindings for these validated layouts. Per-attribute
    replay would otherwise read unrelated slots or apply relative offsets twice. */
 static int particle_vertex_binding_ready(void)
@@ -13516,7 +13532,7 @@ static int particle_vertex_binding_ready(void)
     if (g_prog_particle_stage[program]) {
         if (g_particle_emitter_ubo_class[program] != 2) return 0;
     } else if (!background_shared_vertex_layout() && !ui_shared_vertex_layout() &&
-               !flare_shared_vertex_layout()) {
+               !flare_shared_vertex_layout() && !trail_shared_vertex_layout()) {
         return 0;
     }
     for (GLuint a = 0; a < NV_MAX_ATTRIBS; a++) {
@@ -18529,6 +18545,32 @@ static int recompile_shader(GLuint shader, const char *src, int len)
     return 1;
 }
 
+/* A rejected optional patch must not leave the driver's shader source broken.
+   recompile_shader commits our source mirror only on success. Restore directly
+   through GL: passing that mirror back to store_shader_src would free it before
+   copying. Successful candidates retain the existing path and source bytes. */
+static int recompile_texcoord_shader(GLuint shader, const char *src, int len)
+{
+    const char *original = g_shader_src[shader].src;
+    int original_len = g_shader_src[shader].len;
+    char error[1024] = {0};
+    GLint restored = 0;
+    if (recompile_shader(shader, src, len)) return 1;
+    if (!real_glGetShaderInfoLog)
+        real_glGetShaderInfoLog = (glGetShaderInfoLog_t)trace_resolve("glGetShaderInfoLog");
+    if (real_glGetShaderInfoLog)
+        real_glGetShaderInfoLog(shader, sizeof(error), NULL, error);
+    error[sizeof(error) - 1] = 0;
+    if (original && real_glShaderSource && real_glCompileShader && real_glGetShaderiv) {
+        real_glShaderSource(shader, 1, &original, &original_len);
+        real_glCompileShader(shader);
+        real_glGetShaderiv(shader, 0x8B81, &restored);
+    }
+    fprintf(stderr, "AMD shim: texcoord patch rejected shader=%u; original compile=%d: %s\n",
+            shader, restored, error);
+    return 0;
+}
+
 static void WINAPI wrap_glAttachShader(GLuint program, GLuint shader)
 {
     if (!real_glAttachShader) real_glAttachShader = (glAttachShader_t)trace_resolve("glAttachShader");
@@ -22014,7 +22056,7 @@ static void WINAPI wrap_glLinkProgram(GLuint program)
                 if (!buf) continue;
                 int plen = patch_texcoord_type(g_shader_src[fs].src, g_shader_src[fs].len,
                                                buf, cap, vt);
-                if (plen >= 0 && recompile_shader(fs, buf, plen)) {
+                if (plen >= 0 && recompile_texcoord_shader(fs, buf, plen)) {
                     glog("SHADER texcoord-patched prog=%u frag=%u tc%d->tc%d\n",
                          program, fs, ft, vt);
                 }

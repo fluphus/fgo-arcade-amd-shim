@@ -6,7 +6,7 @@ Only **AMD Radeon RX 7900 XTX** has been tested. In the latest PVP test, perform
 
 **Only 1920×1080 (1080p) is supported. Other resolutions have known rendering errors. The patch has a built-in 60 FPS cap.**
 
-This update fixes intermittent large white flashes in London battles.
+This update fixes blue panels during certain ranged attacks by Merlin and Ishtar, and improves recovery when an optional shader adjustment fails to compile. It includes the earlier London white-flash fix.
 
 ## Install and Restore
 

@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release_id": "20260916-london-fog-fix",
+  "release_id": "20260916-trail-robustness",
   "baseline": "baseline-20260914-60hz-pvp",
-  "renderer_commit": "520216e64580d32fbf0cbdeef595ecedcf85887f",
+  "renderer_commit": "2a180cb86ba106d187181bde134e294f79678e9e",
   "architecture": "AMD64",
   "pacing_hz": 60,
   "configuration": "embedded",
@@ -15,11 +15,11 @@
   "performance_scope": "User reports almost entirely 60 FPS in PVP on RX 7900 XTX, briefly about 57 FPS on servant switches; other GPUs and modes unverified",
   "compiler": "clang version 22.1.8 (https://github.com/llvm/llvm-project.git ca7933e47d3a3451d81e72ac174dcb5aa28b59d1)",
   "source_inventory": "source/release/source-files.json",
-  "created_at": "2026-09-16T04:59:32.979136+08:00",
-  "renderer_reference_sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76",
+  "created_at": "2026-09-16T18:35:48.1721345+08:00",
+  "renderer_reference_sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6",
   "build_command": "x86_64-w64-mingw32-gcc.exe -O2 -shared -o opengl32.dll shim.c shim.def -lgdi32 -luser32",
   "packaged_dll_name": "game-patch/opengl32.dll",
-  "visual_status": "User confirmed the London white-flash fix in gameplay on RX 7900 XTX.",
+  "visual_status": "User confirmed the blue ranged-attack panels and earlier London white flashes are fixed. The added texcoord rollback passed offline AMD regressions; external-client startup remains unverified.",
   "files": [
     {
       "path": ".gitattributes",
@@ -53,8 +53,8 @@
     },
     {
       "path": "game-patch/opengl32.dll",
-      "bytes": 463872,
-      "sha256": "B8A7EA9022BCD658B3C2B79A97C288897558A31613F3E629E1784476ABC9DE76"
+      "bytes": 464384,
+      "sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6"
     },
     {
       "path": "LICENSE",
@@ -63,23 +63,23 @@
     },
     {
       "path": "README.en.md",
-      "bytes": 1348,
-      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
+      "bytes": 1483,
+      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
     },
     {
       "path": "README.ja.md",
-      "bytes": 1804,
-      "sha256": "E30EA43E676A97C28F8C5A164768830C0FA358BB9C3C326EBECE8F4D472E8FA5"
+      "bytes": 2005,
+      "sha256": "77DFA055B4E4B3460F8C53F4F5AA48D65B60D9ACB3339E9909E7ABE8BAC5C3E4"
     },
     {
       "path": "README.md",
-      "bytes": 1348,
-      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
+      "bytes": 1483,
+      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
     },
     {
       "path": "README.zh-CN.md",
-      "bytes": 1307,
-      "sha256": "39AFEF28EE39297886DC59A6DD690BD707B00C5187D43754C31B4891C3397E16"
+      "bytes": 1415,
+      "sha256": "E37BB2DA56A508DAC17045EB3F22968F274168BCBEC57BFE9E4C7CD3FFE625B9"
     },
     {
       "path": "source/battle_driver_errors.h",
@@ -188,8 +188,8 @@
     },
     {
       "path": "source/README.md",
-      "bytes": 6398,
-      "sha256": "77AFF2C2CBBD771CCF7C64B72F0C9645C59E76F0C6B44786DA712D13CEE66B55"
+      "bytes": 8035,
+      "sha256": "6C4757D0BD6D8A9EC0BEF4C0513E59CFEA1D32F3C8C709176772A5620025CD8B"
     },
     {
       "path": "source/release/embedded-profile.json",
@@ -218,23 +218,23 @@
     },
     {
       "path": "source/release/gui/README.en.md",
-      "bytes": 1348,
-      "sha256": "08A37462DF60E7F76F92B98B64DC33E4D6FB60214CC051A41C91010E7407041F"
+      "bytes": 1483,
+      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
     },
     {
       "path": "source/release/gui/README.ja.md",
-      "bytes": 1804,
-      "sha256": "E30EA43E676A97C28F8C5A164768830C0FA358BB9C3C326EBECE8F4D472E8FA5"
+      "bytes": 2005,
+      "sha256": "77DFA055B4E4B3460F8C53F4F5AA48D65B60D9ACB3339E9909E7ABE8BAC5C3E4"
     },
     {
       "path": "source/release/gui/README.zh-CN.md",
-      "bytes": 1307,
-      "sha256": "39AFEF28EE39297886DC59A6DD690BD707B00C5187D43754C31B4891C3397E16"
+      "bytes": 1415,
+      "sha256": "E37BB2DA56A508DAC17045EB3F22968F274168BCBEC57BFE9E4C7CD3FFE625B9"
     },
     {
       "path": "source/release/gui/SOURCE.md",
-      "bytes": 6398,
-      "sha256": "77AFF2C2CBBD771CCF7C64B72F0C9645C59E76F0C6B44786DA712D13CEE66B55"
+      "bytes": 8035,
+      "sha256": "6C4757D0BD6D8A9EC0BEF4C0513E59CFEA1D32F3C8C709176772A5620025CD8B"
     },
     {
       "path": "source/release/install.ps1",
@@ -248,8 +248,8 @@
     },
     {
       "path": "source/release/source-files.json",
-      "bytes": 2695,
-      "sha256": "EFA87876ACF47A19FAF4F0FD0416C2FC7E23CBDBFA85932380D09CB3A9950E90"
+      "bytes": 2959,
+      "sha256": "6BFAD4A88357A96FE03F14EC6C8E722B8DFCEC67C9984825D0E44739FB4466AE"
     },
     {
       "path": "source/servant_dissolve_capture.h",
@@ -258,8 +258,8 @@
     },
     {
       "path": "source/shim.c",
-      "bytes": 1611220,
-      "sha256": "9F77A6B753EDF33A829C8245E268049FC89CF6A8E4A182468EC67F32B4EF31A4"
+      "bytes": 1613192,
+      "sha256": "79D10362716E47FA3A0238AE4B6ACA95B79CAA53DDA01120F056BCCF8008E357"
     },
     {
       "path": "source/shim.def",
@@ -568,13 +568,73 @@
     },
     {
       "path": "verification/release-audit.json",
-      "bytes": 1654,
-      "sha256": "FF22379DD974AA65F8D80580FDCE68B264A5764D96670FE4A45B285A84A5062D"
+      "bytes": 2015,
+      "sha256": "4D0CE36388432E77DE93BEC73130FB32AFD45F494B86C606FB09D1F9A397C662"
     },
     {
       "path": "verification/summary.json",
       "bytes": 548,
       "sha256": "FFC2D69C9C64E3A5B565389CA8AB1D25C5A55A2AC8A78E9D7931CE90B1C4C736"
+    },
+    {
+      "path": "source/tests/fixtures/trail/blob-837811.bin",
+      "bytes": 11968,
+      "sha256": "63F97E3DA5B1C7A554311DC004EEE3805F1EEC7C7A1F473FE048B3F19175B6DB"
+    },
+    {
+      "path": "source/tests/fixtures/trail/blob-837812.bin",
+      "bytes": 11968,
+      "sha256": "A887CA54CC74089CD5634DAAB561F7C29359C27FFBCC7AA540C609093FA2082B"
+    },
+    {
+      "path": "source/tests/fixtures/trail/sample.json",
+      "bytes": 597,
+      "sha256": "B94FDC199F58C2526F4E78CFF54CEAF593264F5B9D5972D04722E8FE3B2D0B21"
+    },
+    {
+      "path": "source/tests/texcoord_link_driver_test.py",
+      "bytes": 7578,
+      "sha256": "1C6C47DEFD5867A3427F3691A6F249AFAE208FDB72103AF6A7ED04A5A74A2F16"
+    },
+    {
+      "path": "source/tests/texcoord_link_wrapper.c",
+      "bytes": 954,
+      "sha256": "FD585D1D80757ECE09FEADEA7187E529EC1CC16CA480C3B6A2DE32E7E8B075AC"
+    },
+    {
+      "path": "source/tests/trail_vertex_driver_test.py",
+      "bytes": 4141,
+      "sha256": "403F9E6E4061780F401B9D13328ED5A5BC921A3727F3C1D9C6F5D4862EEAE7C3"
+    },
+    {
+      "path": "source/tests/trail_vertex_wrapper.c",
+      "bytes": 1735,
+      "sha256": "7A1AE42E57B17CD95F4501C7B612D64974B8139F9E29CF1F2365FE0F230AE1C4"
+    },
+    {
+      "path": "verification/texcoord-rollback.json",
+      "bytes": 3054,
+      "sha256": "E68D5D5E0083BFF75AEAA531D9BFD380FDFE658304C64129B3548414B0E0F617"
+    },
+    {
+      "path": "verification/trail-background-layouts.json",
+      "bytes": 554,
+      "sha256": "1CE24AF99896D06C712BDA978C400B904301B2B5A4D83A0D1041C1FBDDDC0D05"
+    },
+    {
+      "path": "verification/trail-particle-layouts.json",
+      "bytes": 546,
+      "sha256": "05F8E4F643C11511091D9AAC8767EC5354950D61803481795F18F8C9E2E4C38E"
+    },
+    {
+      "path": "verification/trail-robustness-production.json",
+      "bytes": 1049,
+      "sha256": "1D5BA1E29A75D8F51D00F5F3B928DC83E4C21622D8FA21F01C8C7114922B4C37"
+    },
+    {
+      "path": "verification/trail-vertex.json",
+      "bytes": 1037,
+      "sha256": "5CAB46930CC52913F5770B59141940DCDA3C8D055AFECBE09D2F8A7B52B112EA"
     }
   ],
   "source_revision": "838e5710 + compute-dispatch hunk from 520216e",

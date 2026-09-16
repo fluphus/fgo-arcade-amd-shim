@@ -6,7 +6,7 @@ Only **AMD Radeon RX 7900 XTX** has been tested. In the latest PVP test, perform
 
 **Only 1920×1080 (1080p) is supported. Other resolutions have known rendering errors. The patch has a built-in 60 FPS cap.**
 
-This update fixes blue panels during certain ranged attacks by Merlin and Ishtar, and improves recovery when an optional shader adjustment fails to compile. It includes the earlier London white-flash fix.
+This update fixes stretched, multicolored castle-wall textures on an additional map. It also includes the earlier ranged-attack trail, London white-flash and shader recovery fixes.
 
 ## Install and Restore
 

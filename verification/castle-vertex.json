@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "captured_sequence": 2431,
+  "vertices": 1326,
+  "position_normal_tangent_unchanged": true,
+  "cases": [
+    {
+      "case": "legacy",
+      "shared_route": false,
+      "incorrect_uv_vertices": 1326,
+      "incorrect_color_vertices": 1326
+    },
+    {
+      "case": "fixed",
+      "shared_route": true,
+      "incorrect_uv_vertices": 0,
+      "incorrect_color_vertices": 0
+    },
+    {
+      "case": "cached",
+      "shared_route": true,
+      "incorrect_uv_vertices": 0,
+      "incorrect_color_vertices": 0
+    },
+    {
+      "case": "relocated",
+      "shared_route": true,
+      "incorrect_uv_vertices": 0,
+      "incorrect_color_vertices": 0
+    },
+    {
+      "case": "return_to_original",
+      "shared_route": true,
+      "incorrect_uv_vertices": 0,
+      "incorrect_color_vertices": 0
+    }
+  ]
+}

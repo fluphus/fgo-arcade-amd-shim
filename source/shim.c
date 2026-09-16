@@ -13439,14 +13439,14 @@ static int model_vertex_stream_translation_active(void)
 
 static int background_shared_vertex_layout(void)
 {
-    static const GLuint attrs[] = {0, 1, 2, 3, 7};
-    static const GLint sizes[] = {3, 4, 4, 2, 4};
-    static const GLenum types[] = {0x1406, 0x8d9f, 0x8d9f, 0x1403, 0x1401};
-    static const GLuint relative[] = {0, 12, 16, 20, 24};
-    static const GLboolean normalized[] = {0, 1, 1, 0, 1};
-    int dual_uv = g_enabled_mask == 0x1f;
-    unsigned attribute_count = (g_enabled_mask == 0x8f || dual_uv) ? 5 : 4;
-    GLsizei stride = attribute_count == 5 ? 28 : 24;
+    static const GLuint attrs[] = {0, 1, 2, 3, 4, 7};
+    static const GLint sizes[] = {3, 4, 4, 2, 2, 4};
+    static const GLenum types[] = {0x1406, 0x8d9f, 0x8d9f, 0x1403, 0x1403, 0x1401};
+    static const GLuint relative[] = {0, 12, 16, 20, 24, 28};
+    static const GLboolean normalized[] = {0, 1, 1, 0, 0, 1};
+    int dual_uv = g_enabled_mask == 0x1f || g_enabled_mask == 0x9f;
+    GLsizei stride = g_enabled_mask == 0x9f ? 32 :
+        (g_enabled_mask == 0x8f || dual_uv) ? 28 : 24;
     if ((g_enabled_mask != 0x8f && g_enabled_mask != 0x0f && !dual_uv) ||
         model_vertex_stream_translation_active() ||
         !g_vbuf[0].set || !g_vbuf[1].set ||
@@ -13454,18 +13454,17 @@ static int background_shared_vertex_layout(void)
         !g_nv_va[0].addr || g_nv_va[0].addr != g_nv_va[1].addr ||
         g_nv_va[0].len != g_nv_va[1].len)
         return 0;
-    for (unsigned i = 0; i < attribute_count; i++) {
-        /* Battle's 28-byte variant ends in UV1 instead of vertex color. */
-        GLuint a = dual_uv && i == 4 ? 4 : attrs[i];
+    for (unsigned i = 0; i < sizeof attrs / sizeof attrs[0]; i++) {
+        GLuint a = attrs[i];
+        if (!(g_enabled_mask & (1u << a))) continue;
         GLuint binding = i >= 3 ? 1 : 0;
-        GLint size = dual_uv && i == 4 ? 2 : sizes[i];
-        GLenum type = dual_uv && i == 4 ? 0x1403 : types[i];
-        GLboolean norm = dual_uv && i == 4 ? 0 : normalized[i];
+        /* Color follows UV0 in stride28, or UV1 in the castle's stride32. */
+        GLuint rel = a == 7 && !dual_uv ? 24 : relative[i];
         if (!g_abind[a].set || g_abind[a].binding != binding ||
-            !g_fmt[a].set || g_fmt[a].size != size ||
-            g_fmt[a].type != type || g_fmt[a].is_int ||
-            g_fmt[a].normalized != norm ||
-            g_fmt[a].relativeoffset != relative[i])
+            !g_fmt[a].set || g_fmt[a].size != sizes[i] ||
+            g_fmt[a].type != types[i] || g_fmt[a].is_int ||
+            g_fmt[a].normalized != normalized[i] ||
+            g_fmt[a].relativeoffset != rel)
             return 0;
     }
     return 1;

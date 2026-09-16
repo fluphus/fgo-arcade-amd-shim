@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release_id": "20260916-trail-robustness",
+  "release_id": "20260916-castle-background",
   "baseline": "baseline-20260914-60hz-pvp",
-  "renderer_commit": "2a180cb86ba106d187181bde134e294f79678e9e",
+  "renderer_commit": "af248dabe993f527d3d4de43a4af4dcc79c04554",
   "architecture": "AMD64",
   "pacing_hz": 60,
   "configuration": "embedded",
@@ -15,11 +15,11 @@
   "performance_scope": "User reports almost entirely 60 FPS in PVP on RX 7900 XTX, briefly about 57 FPS on servant switches; other GPUs and modes unverified",
   "compiler": "clang version 22.1.8 (https://github.com/llvm/llvm-project.git ca7933e47d3a3451d81e72ac174dcb5aa28b59d1)",
   "source_inventory": "source/release/source-files.json",
-  "created_at": "2026-09-16T18:35:48.1721345+08:00",
-  "renderer_reference_sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6",
+  "created_at": "2026-09-16T22:26:36.8792932+08:00",
+  "renderer_reference_sha256": "F652D4FC32EFD3095283E503888C0D8630A206811F90A743A2B65B466C80F5B7",
   "build_command": "x86_64-w64-mingw32-gcc.exe -O2 -shared -o opengl32.dll shim.c shim.def -lgdi32 -luser32",
   "packaged_dll_name": "game-patch/opengl32.dll",
-  "visual_status": "User confirmed the blue ranged-attack panels and earlier London white flashes are fixed. The added texcoord rollback passed offline AMD regressions; external-client startup remains unverified.",
+  "visual_status": "User confirmed the castle-wall correction and earlier ranged-attack and London fixes. Texcoord rollback passed offline AMD regressions; external-client startup remains unverified.",
   "files": [
     {
       "path": ".gitattributes",
@@ -35,6 +35,31 @@
       "path": "FgoAmdPatch.exe",
       "bytes": 16384,
       "sha256": "C0CB9995CD0A6275239DC7B53C5EA2CE88846AF8FA47975C46E6F35A539A1BAA"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1085,
+      "sha256": "83D325A3A1110618AAC085850A187EA01F2734E86C1C4C9DA5AF11C74EBA075A"
+    },
+    {
+      "path": "README.en.md",
+      "bytes": 1459,
+      "sha256": "C9C1D8F8689D4B0BC4226F7C557159EDDEA45F46438ECA90E837977828F935B9"
+    },
+    {
+      "path": "README.ja.md",
+      "bytes": 1939,
+      "sha256": "A09AE92ACA1AEFDC0516C60AC028381A63EEFB86E5EEC3D626CCC016BE049B5C"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1459,
+      "sha256": "C9C1D8F8689D4B0BC4226F7C557159EDDEA45F46438ECA90E837977828F935B9"
+    },
+    {
+      "path": "README.zh-CN.md",
+      "bytes": 1394,
+      "sha256": "5BB31EF4D185A9B85C5C875D786DAB3A0ECBFE3D0D55F14B603C4619FDEF21C7"
     },
     {
       "path": "game-patch/amdcfg/amdOglpSettings.cfg",
@@ -54,32 +79,12 @@
     {
       "path": "game-patch/opengl32.dll",
       "bytes": 464384,
-      "sha256": "D88EEF041EAE2AAF413597FCB679602FA85671A2E695FCA20A03CCA876042FE6"
+      "sha256": "F652D4FC32EFD3095283E503888C0D8630A206811F90A743A2B65B466C80F5B7"
     },
     {
-      "path": "LICENSE",
-      "bytes": 1085,
-      "sha256": "83D325A3A1110618AAC085850A187EA01F2734E86C1C4C9DA5AF11C74EBA075A"
-    },
-    {
-      "path": "README.en.md",
-      "bytes": 1483,
-      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
-    },
-    {
-      "path": "README.ja.md",
-      "bytes": 2005,
-      "sha256": "77DFA055B4E4B3460F8C53F4F5AA48D65B60D9ACB3339E9909E7ABE8BAC5C3E4"
-    },
-    {
-      "path": "README.md",
-      "bytes": 1483,
-      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
-    },
-    {
-      "path": "README.zh-CN.md",
-      "bytes": 1415,
-      "sha256": "E37BB2DA56A508DAC17045EB3F22968F274168BCBEC57BFE9E4C7CD3FFE625B9"
+      "path": "source/README.md",
+      "bytes": 8976,
+      "sha256": "5F0E35D874455E105216F0881BB39981B9C8E45BF47D22BAC079573DE7309BBC"
     },
     {
       "path": "source/battle_driver_errors.h",
@@ -187,14 +192,34 @@
       "sha256": "31F31BA95EFCBA334E6DB799FB3AC9ABB54B32BAF53A94361A158FA8BCC683AC"
     },
     {
-      "path": "source/README.md",
-      "bytes": 8035,
-      "sha256": "6C4757D0BD6D8A9EC0BEF4C0513E59CFEA1D32F3C8C709176772A5620025CD8B"
-    },
-    {
       "path": "source/release/embedded-profile.json",
       "bytes": 2298,
       "sha256": "D9FEF4C2821A6C2FBF93BC72DE9BEF4D9A3376464427BFEDD45AA9D860F779A7"
+    },
+    {
+      "path": "source/release/gui/Installer.cs",
+      "bytes": 14628,
+      "sha256": "C384E708666EBE9B5F272EFE3F40AC2DB3AF4EE17800D3B5237CBDC7C2624CD2"
+    },
+    {
+      "path": "source/release/gui/README.en.md",
+      "bytes": 1459,
+      "sha256": "C9C1D8F8689D4B0BC4226F7C557159EDDEA45F46438ECA90E837977828F935B9"
+    },
+    {
+      "path": "source/release/gui/README.ja.md",
+      "bytes": 1939,
+      "sha256": "A09AE92ACA1AEFDC0516C60AC028381A63EEFB86E5EEC3D626CCC016BE049B5C"
+    },
+    {
+      "path": "source/release/gui/README.zh-CN.md",
+      "bytes": 1394,
+      "sha256": "5BB31EF4D185A9B85C5C875D786DAB3A0ECBFE3D0D55F14B603C4619FDEF21C7"
+    },
+    {
+      "path": "source/release/gui/SOURCE.md",
+      "bytes": 8976,
+      "sha256": "5F0E35D874455E105216F0881BB39981B9C8E45BF47D22BAC079573DE7309BBC"
     },
     {
       "path": "source/release/gui/app.manifest",
@@ -212,44 +237,19 @@
       "sha256": "F90F92283CDB802C807D417E587398A41F65E7414B8AF49243255F0F6C94B87B"
     },
     {
-      "path": "source/release/gui/Installer.cs",
-      "bytes": 14628,
-      "sha256": "C384E708666EBE9B5F272EFE3F40AC2DB3AF4EE17800D3B5237CBDC7C2624CD2"
-    },
-    {
-      "path": "source/release/gui/README.en.md",
-      "bytes": 1483,
-      "sha256": "A3CC02C6BE045E09500E903E9E16F049A7CF0BB6B6D82CA82EA5C94670319362"
-    },
-    {
-      "path": "source/release/gui/README.ja.md",
-      "bytes": 2005,
-      "sha256": "77DFA055B4E4B3460F8C53F4F5AA48D65B60D9ACB3339E9909E7ABE8BAC5C3E4"
-    },
-    {
-      "path": "source/release/gui/README.zh-CN.md",
-      "bytes": 1415,
-      "sha256": "E37BB2DA56A508DAC17045EB3F22968F274168BCBEC57BFE9E4C7CD3FFE625B9"
-    },
-    {
-      "path": "source/release/gui/SOURCE.md",
-      "bytes": 8035,
-      "sha256": "6C4757D0BD6D8A9EC0BEF4C0513E59CFEA1D32F3C8C709176772A5620025CD8B"
-    },
-    {
       "path": "source/release/install.ps1",
       "bytes": 7389,
       "sha256": "77FEDFC46D2988C7DFA4166F42CA6053D9EA7F87ECFD35AB4B8871E9EE41456D"
     },
     {
       "path": "source/release/package-gui.ps1",
-      "bytes": 9921,
-      "sha256": "0289F689EBEC51FA00D6D13E11E0E7CD872940B3A9E881C44841DFC67B3B096C"
+      "bytes": 9931,
+      "sha256": "8846F8FE849C897D26D66E835AA34555BF932BE63E4363D13B2591F163075931"
     },
     {
       "path": "source/release/source-files.json",
-      "bytes": 2959,
-      "sha256": "6BFAD4A88357A96FE03F14EC6C8E722B8DFCEC67C9984825D0E44739FB4466AE"
+      "bytes": 3147,
+      "sha256": "7123E5922B746BDD908553C3AF0863171AE6E54BA62D5A6367DF4401F6D3FC35"
     },
     {
       "path": "source/servant_dissolve_capture.h",
@@ -258,8 +258,8 @@
     },
     {
       "path": "source/shim.c",
-      "bytes": 1613192,
-      "sha256": "79D10362716E47FA3A0238AE4B6ACA95B79CAA53DDA01120F056BCCF8008E357"
+      "bytes": 1613069,
+      "sha256": "D9C23E5DF5C1DC0FBE78EE995E3DE4BA6990FB3A7E08A4374F634140AB9F3AAF"
     },
     {
       "path": "source/shim.def",
@@ -307,6 +307,16 @@
       "sha256": "417BAB8FDC0A53797790FCA480FE2091D85A5949AEF7BEE641A385D0B477BE95"
     },
     {
+      "path": "source/tests/castle_vertex_driver_test.py",
+      "bytes": 5857,
+      "sha256": "C944D585F745A2C47C13405BCE5F78FBA0954E5B3A2B2B4209D5E29B3F5F566F"
+    },
+    {
+      "path": "source/tests/castle_vertex_wrapper.c",
+      "bytes": 1917,
+      "sha256": "755A09065D2E496F86E288D0FE4F80B772B3B0C7760D9CFEEB2A2206F6AF8414"
+    },
+    {
       "path": "source/tests/compute_pointer_driver_test.py",
       "bytes": 7945,
       "sha256": "6A1C3F1915F5A9159935D6BC5F3DFD0BA89E65DE8BD1E7FEBCF33B58CE4BFD0E"
@@ -335,6 +345,21 @@
       "path": "source/tests/external_optimization_wrapper.c",
       "bytes": 6556,
       "sha256": "2B3B550522971AA8F2F3F7CF27979354FDED1C44804B4B7BD5985AF1D70B68D6"
+    },
+    {
+      "path": "source/tests/fixtures/castle/blob-69.bin",
+      "bytes": 42432,
+      "sha256": "843ECB3C6D11BD74848BEC92CE37AD59B6BCDABD1B2B889D646497551E4C0F21"
+    },
+    {
+      "path": "source/tests/fixtures/castle/blob-70.bin",
+      "bytes": 42432,
+      "sha256": "D29A2A5D0236FE4D2F6A4651C100C6A539D59D1374311BC72BB37BE931D48AA6"
+    },
+    {
+      "path": "source/tests/fixtures/castle/sample.json",
+      "bytes": 552,
+      "sha256": "DF9527EC8BABB143D2921EE27BE39610956E4272FC838CC241D152E0A86EA6E7"
     },
     {
       "path": "source/tests/fixtures/compute/london_scattering.comp",
@@ -385,6 +410,21 @@
       "path": "source/tests/fixtures/particle/native_shader_2610.glsl",
       "bytes": 17498,
       "sha256": "E74C4DAB70635B37F04F113CA044CDBC01C68D3B418F22587282818C9D13CC7C"
+    },
+    {
+      "path": "source/tests/fixtures/trail/blob-837811.bin",
+      "bytes": 11968,
+      "sha256": "63F97E3DA5B1C7A554311DC004EEE3805F1EEC7C7A1F473FE048B3F19175B6DB"
+    },
+    {
+      "path": "source/tests/fixtures/trail/blob-837812.bin",
+      "bytes": 11968,
+      "sha256": "A887CA54CC74089CD5634DAAB561F7C29359C27FFBCC7AA540C609093FA2082B"
+    },
+    {
+      "path": "source/tests/fixtures/trail/sample.json",
+      "bytes": 597,
+      "sha256": "B94FDC199F58C2526F4E78CFF54CEAF593264F5B9D5972D04722E8FE3B2D0B21"
     },
     {
       "path": "source/tests/gui_release_test.cs",
@@ -457,6 +497,26 @@
       "sha256": "F8A44D9C1BC10DD10C4CD9161E87E14F514AC27F582DF74CB958A179095C62EC"
     },
     {
+      "path": "source/tests/texcoord_link_driver_test.py",
+      "bytes": 7578,
+      "sha256": "1C6C47DEFD5867A3427F3691A6F249AFAE208FDB72103AF6A7ED04A5A74A2F16"
+    },
+    {
+      "path": "source/tests/texcoord_link_wrapper.c",
+      "bytes": 954,
+      "sha256": "FD585D1D80757ECE09FEADEA7187E529EC1CC16CA480C3B6A2DE32E7E8B075AC"
+    },
+    {
+      "path": "source/tests/trail_vertex_driver_test.py",
+      "bytes": 4141,
+      "sha256": "403F9E6E4061780F401B9D13328ED5A5BC921A3727F3C1D9C6F5D4862EEAE7C3"
+    },
+    {
+      "path": "source/tests/trail_vertex_wrapper.c",
+      "bytes": 1735,
+      "sha256": "7A1AE42E57B17CD95F4501C7B612D64974B8139F9E29CF1F2365FE0F230AE1C4"
+    },
+    {
       "path": "source/tools/analyze-capture.py",
       "bytes": 6423,
       "sha256": "370B377E323E9FF750B6A7A7CF570E64E1C98536C34A311BB6EC363289F33E6C"
@@ -510,6 +570,26 @@
       "path": "verification/capture-validation.json",
       "bytes": 257,
       "sha256": "105C5D9B8D2141D6C5E0A682E36B8F2CF3256832E3EE5BB210492F175768D047"
+    },
+    {
+      "path": "verification/castle-background-layouts.json",
+      "bytes": 554,
+      "sha256": "1CE24AF99896D06C712BDA978C400B904301B2B5A4D83A0D1041C1FBDDDC0D05"
+    },
+    {
+      "path": "verification/castle-particle-layouts.json",
+      "bytes": 546,
+      "sha256": "05F8E4F643C11511091D9AAC8767EC5354950D61803481795F18F8C9E2E4C38E"
+    },
+    {
+      "path": "verification/castle-production.json",
+      "bytes": 898,
+      "sha256": "6A483767B531DCC2D329F8C27F9BB8C3A935D4E3B009DDC73275C4676F5D33B2"
+    },
+    {
+      "path": "verification/castle-vertex.json",
+      "bytes": 902,
+      "sha256": "9443904A334CF705DC3EC5F9279F476F6EAE34F73F787849EA71ECC03200F4D9"
     },
     {
       "path": "verification/compute-pointer-fixed.json",
@@ -568,48 +648,13 @@
     },
     {
       "path": "verification/release-audit.json",
-      "bytes": 2015,
-      "sha256": "4D0CE36388432E77DE93BEC73130FB32AFD45F494B86C606FB09D1F9A397C662"
+      "bytes": 2148,
+      "sha256": "6479229CA48E80BC77B80560EC1C41F8DFB2B7C27CB4AFE68AD2274A6AED9407"
     },
     {
       "path": "verification/summary.json",
       "bytes": 548,
       "sha256": "FFC2D69C9C64E3A5B565389CA8AB1D25C5A55A2AC8A78E9D7931CE90B1C4C736"
-    },
-    {
-      "path": "source/tests/fixtures/trail/blob-837811.bin",
-      "bytes": 11968,
-      "sha256": "63F97E3DA5B1C7A554311DC004EEE3805F1EEC7C7A1F473FE048B3F19175B6DB"
-    },
-    {
-      "path": "source/tests/fixtures/trail/blob-837812.bin",
-      "bytes": 11968,
-      "sha256": "A887CA54CC74089CD5634DAAB561F7C29359C27FFBCC7AA540C609093FA2082B"
-    },
-    {
-      "path": "source/tests/fixtures/trail/sample.json",
-      "bytes": 597,
-      "sha256": "B94FDC199F58C2526F4E78CFF54CEAF593264F5B9D5972D04722E8FE3B2D0B21"
-    },
-    {
-      "path": "source/tests/texcoord_link_driver_test.py",
-      "bytes": 7578,
-      "sha256": "1C6C47DEFD5867A3427F3691A6F249AFAE208FDB72103AF6A7ED04A5A74A2F16"
-    },
-    {
-      "path": "source/tests/texcoord_link_wrapper.c",
-      "bytes": 954,
-      "sha256": "FD585D1D80757ECE09FEADEA7187E529EC1CC16CA480C3B6A2DE32E7E8B075AC"
-    },
-    {
-      "path": "source/tests/trail_vertex_driver_test.py",
-      "bytes": 4141,
-      "sha256": "403F9E6E4061780F401B9D13328ED5A5BC921A3727F3C1D9C6F5D4862EEAE7C3"
-    },
-    {
-      "path": "source/tests/trail_vertex_wrapper.c",
-      "bytes": 1735,
-      "sha256": "7A1AE42E57B17CD95F4501C7B612D64974B8139F9E29CF1F2365FE0F230AE1C4"
     },
     {
       "path": "verification/texcoord-rollback.json",
@@ -637,11 +682,12 @@
       "sha256": "5CAB46930CC52913F5770B59141940DCDA3C8D055AFECBE09D2F8A7B52B112EA"
     }
   ],
-  "source_revision": "838e5710 + compute-dispatch hunk from 520216e",
+  "source_revision": "af248dabe993f527d3d4de43a4af4dcc79c04554",
   "changes": [
-    "Fix transient white flashes in London by updating translated light pointers before compute dispatch",
-    "Include the focused AMD compute regression and its shader fixture"
+    "Fix stretched multicolored castle walls by preserving shared UV and color input in 32-byte background vertices",
+    "Include a standalone captured vertex regression and its AMD validation",
+    "Retain accepted ranged-attack trail, London compute-pointer and rejected shader-patch recovery fixes"
   ],
   "renderer_base_commit": "838e5710a3a54aa947bf8867ce878c96274709c0",
-  "renderer_patch_scope": "Compute-dispatch pointer replay only"
+  "renderer_patch_scope": "Add the captured 32-byte dual-UV and vertex-color background layout; preserve prior trail, London and shader recovery fixes"
 }

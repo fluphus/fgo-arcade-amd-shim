@@ -1,0 +1,25 @@
+{
+  "description": "Captured castle draw 2431: requested and 12-byte-shifted vertex prefixes; 1326 vertices, stride 32.",
+  "rows": [
+    {
+      "event": "buffer",
+      "seq": 2431,
+      "role": "vertex_prefix",
+      "buffer": 111,
+      "offset": 17467936,
+      "bytes": 42432,
+      "blob": 69,
+      "command": 0
+    },
+    {
+      "event": "buffer",
+      "seq": 2431,
+      "role": "vertex_prefix",
+      "buffer": 111,
+      "offset": 17467948,
+      "bytes": 42432,
+      "blob": 70,
+      "command": 1
+    }
+  ]
+}

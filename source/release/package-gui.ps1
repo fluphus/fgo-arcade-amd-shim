@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Destination,
-    [string]$ReleaseId = '20260915-mapped-sampler-cache',
+    [string]$ReleaseId = '20260916-castle-background',
     [string]$BuildDirectory = 'build\gui-release',
     [string]$ReferenceRenderer = '..\game-patch\opengl32.dll'
 )
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $build -Force | Out-Null
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 Push-Location $root
 try {
-    $revision = '838e5710a3a54aa947bf8867ce878c96274709c0'
+    $revision = 'af248dabe993f527d3d4de43a4af4dcc79c04554'
     $sourceFiles = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-files.json') -Raw | ConvertFrom-Json
 
     $linkerName = Split-Path -Leaf $ReferenceRenderer
@@ -25,7 +25,7 @@ try {
     & (Join-Path $PSScriptRoot 'gui\build.ps1') -Output (Join-Path $build 'FgoAmdPatch.exe') *> (Join-Path $build 'gui-build.log')
     $dll = Join-Path $build $linkerName
     $reference = if ([IO.Path]::IsPathRooted($ReferenceRenderer)) { $ReferenceRenderer } else { Join-Path $root $ReferenceRenderer }
-    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne '71D76756227EBDCA1BB38BB5A816193D774D75E3925D45E17E71297D1D3298CA') {
+    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne 'F652D4FC32EFD3095283E503888C0D8630A206811F90A743A2B65B466C80F5B7') {
         throw 'Reference is not the user-confirmed baseline DLL.'
     }
     & python (Join-Path $root 'tests\release_binary_compare.py') $reference $dll
@@ -69,7 +69,7 @@ try {
             renderer_reference_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
             build_command = "x86_64-w64-mingw32-gcc.exe -O2 -shared -o $linkerName shim.c shim.def -lgdi32 -luser32"
             packaged_dll_name = 'game-patch/opengl32.dll'
-            visual_status = 'Baseline rendering previously confirmed; this update passed offline sampler pixel, state and lifetime regressions. Latest user confirmation concerns PVP performance.'
+            visual_status = 'User confirmed the castle-wall correction and earlier ranged-attack and London fixes. Texcoord rollback passed offline AMD regression; external-client startup remains unverified.'
             files = $files
         }
         [IO.File]::WriteAllText((Join-Path $package 'release.json'), ($manifest | ConvertTo-Json -Depth 6), $utf8)

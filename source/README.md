@@ -142,6 +142,25 @@ Results are included in `../verification/trail-vertex.json` and
 does not fix a genuine vertex/fragment interface mismatch or establish support
 for other game-client versions.
 
+## Castle Background Vertex Layout
+
+The castle regression checks the 32-byte background layout with two UV sets
+and vertex color. A captured 1,326-vertex prefix reproduces the old 12-byte
+UV/color displacement, then checks corrected, cached and relocated bindings.
+Position, normal and tangent outputs must remain identical in every case.
+
+```powershell
+$out = '.\build\castle-vertex'
+New-Item -ItemType Directory -Force $out | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\castle_vertex_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+python .\tests\castle_vertex_driver_test.py "$out\wrapper.dll" .\tests\fixtures\castle "$out\result.json"
+```
+
+The fixture includes only the two relevant vertex prefixes, not a full scene.
+It uses the same AMD OpenGL context and Python dependencies as the trail test.
+Expected results are in `../verification/castle-vertex.json`; all corrected
+cases have zero incorrect UV and color vertices.
+
 ## Reuse an Existing Shader Cache
 
 Revision 2 shares translated shaders across object IDs. To reuse a previous

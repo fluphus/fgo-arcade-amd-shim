@@ -109,6 +109,39 @@ output has `all_fixed: true`; a failure exits with an error. This is a controlle
 shader regression, not a complete battle replay. Results from the previous and
 fixed implementations are in `../verification/compute-pointer-*.json`.
 
+## Trail Vertex Binding and Shader Recovery
+
+The trail regression uses a small captured pair of vertex buffers. It checks
+the shared position/UV binding, cached replay, relocated NV addresses and
+rejection of unrelated layouts. The old route reproduces nonfinite UV values;
+the corrected route reproduces all 374 requested vertices exactly.
+
+```powershell
+$out = '.\build\trail-vertex'
+New-Item -ItemType Directory -Force $out | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\trail_vertex_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+python .\tests\trail_vertex_driver_test.py "$out\wrapper.dll" .\tests\fixtures\trail "$out"
+```
+
+The texcoord regression exercises actual shader linking. Successful optional
+adjustments retain their source and expected pixels. Rejected adjustments must
+restore the original shader source and compilation state, so the shader remains
+usable by compatible programs. It covers 13 cases, including swizzles, indexing,
+macros and inactive code.
+
+```powershell
+$out = '.\build\texcoord-rollback'
+New-Item -ItemType Directory -Force $out | Out-Null
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\texcoord_link_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+python .\tests\texcoord_link_driver_test.py --wrapper "$out\wrapper.dll" --output "$out\result.json"
+```
+
+Both tests use an AMD OpenGL context and the existing Python dependencies.
+Results are included in `../verification/trail-vertex.json` and
+`../verification/texcoord-rollback.json`. Restoring a rejected shader adjustment
+does not fix a genuine vertex/fragment interface mismatch or establish support
+for other game-client versions.
+
 ## Reuse an Existing Shader Cache
 
 Revision 2 shares translated shaders across object IDs. To reuse a previous

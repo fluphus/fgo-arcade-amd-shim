@@ -1,0 +1,21 @@
+{
+    "sequence":  3821386,
+    "frame":  157687,
+    "program":  2614,
+    "rows":  [
+                 {
+                     "event":  "buffer",
+                     "role":  "vertex_prefix",
+                     "command":  0,
+                     "offset":  0,
+                     "blob":  837811
+                 },
+                 {
+                     "event":  "buffer",
+                     "role":  "vertex_prefix",
+                     "command":  1,
+                     "offset":  207536,
+                     "blob":  837812
+                 }
+             ]
+}

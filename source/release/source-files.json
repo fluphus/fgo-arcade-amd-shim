@@ -34,5 +34,9 @@
   "tests/fixtures/particle/native_2625.glsl", "tests/fixtures/particle/native_2631.glsl",
   "tests/fixtures/particle/native_2633.glsl", "tests/fixtures/particle/native_2635.glsl",
   "tests/compute_pointer_wrapper.c", "tests/compute_pointer_driver_test.py",
-  "tests/fixtures/compute/london_scattering.comp"
+  "tests/fixtures/compute/london_scattering.comp",
+  "tests/texcoord_link_wrapper.c", "tests/texcoord_link_driver_test.py",
+  "tests/trail_vertex_wrapper.c", "tests/trail_vertex_driver_test.py",
+  "tests/fixtures/trail/sample.json", "tests/fixtures/trail/blob-837811.bin",
+  "tests/fixtures/trail/blob-837812.bin"
 ]

@@ -78,6 +78,7 @@ class GuiReleaseTest
         try {
             package = Path.GetFullPath(args[0]);
             run = Path.GetFullPath(args[1]);
+            Check(!File.Exists(Path.Combine(package, "release.json")), "Obsolete release manifest is present");
             Directory.CreateDirectory(run);
             rendererHash = Hash(Path.Combine(package, "game-patch", "opengl32.dll"));
             systemHash = Hash(Path.Combine(Environment.SystemDirectory, "opengl32.dll"));
@@ -111,7 +112,7 @@ class GuiReleaseTest
 
             string corruptPackage = Path.Combine(run, "corrupt package");
             Directory.CreateDirectory(Path.Combine(corruptPackage, "game-patch"));
-            File.Copy(Path.Combine(package, "release.json"), Path.Combine(corruptPackage, "release.json"));
+            File.Copy(Path.Combine(package, "SHA256SUMS.txt"), Path.Combine(corruptPackage, "SHA256SUMS.txt"));
             foreach (string file in Directory.GetFiles(Path.Combine(package, "game-patch"), "*", SearchOption.AllDirectories)) {
                 string destination = Path.Combine(corruptPackage, file.Substring(package.TrimEnd('\\').Length + 1));
                 Directory.CreateDirectory(Path.GetDirectoryName(destination));

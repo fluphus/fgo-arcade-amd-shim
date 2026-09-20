@@ -9795,14 +9795,31 @@ static void WINAPI wrap_glUseProgram(GLuint program)
     perf_program_use_end(perf_program_start);
 }
 
-static void WINAPI wrap_glBindVertexArray(GLuint array)
+static int frame_boundary_game_caller(const void *caller)
+{
+    static uintptr_t image_begin, image_end;
+    if (!image_end) {
+        HMODULE image = GetModuleHandleW(NULL);
+        if (!image) return 1;
+        const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *)image;
+        const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)
+            ((const char *)image + dos->e_lfanew);
+        image_begin = (uintptr_t)image;
+        image_end = image_begin + nt->OptionalHeader.SizeOfImage;
+    }
+    return (uintptr_t)caller >= image_begin && (uintptr_t)caller < image_end;
+}
+
+static __attribute__((noinline)) void WINAPI wrap_glBindVertexArray(GLuint array)
 {
     static glBindVertexArray_t real;
     int changed = g_current_vao != array;
     if (!real) real = (glBindVertexArray_t)trace_resolve("glBindVertexArray");
     g_current_vao = array;
     if (changed) g_bindless_state_replay_cache_valid = 0;
-    if (array == 0) frame_boundary_bookkeeping();
+    /* Postprocess DLLs restore VAO zero too; only the game's reset ends a frame. */
+    if (array == 0 && frame_boundary_game_caller(__builtin_return_address(0)))
+        frame_boundary_bookkeeping();
     glog("BIND glBindVertexArray %u\n", array);
     if (real) real(array);
 }
@@ -17496,7 +17513,7 @@ static GLenum p700_fbo105_sc_depth_convert(GLuint src_d, GLuint dst_d,
     g_p700_sc_convert_err[3] = 0;
     g_p700_sc_d101[0] = g_p700_sc_d101[1] = g_p700_sc_d101[2] = 0.f;
     g_p700_sc_d106[0] = g_p700_sc_d106[1] = g_p700_sc_d106[2] = 0.f;
-    if (!src_d || !dst_d || w <= 0 || h <= 0 || w > 1920 || h > 1080)
+    if (!src_d || !dst_d || w <= 0 || h <= 0)
         return 0x501;
     if (sx0 < 0) sx0 = 0;
     if (sy0 < 0) sy0 = 0;
@@ -17506,6 +17523,9 @@ static GLenum p700_fbo105_sc_depth_convert(GLuint src_d, GLuint dst_d,
         g_p700_sc_convert_path = 5;
         return 0;
     }
+    /* The fixed scratch capacity limits only the CPU fallback. */
+    if (w > 1920 || h > 1080)
+        return 0x501;
     n = w * h;
     if (!get_err) {
         get_err = (get_err_t)trace_resolve("glGetError");
@@ -23911,6 +23931,11 @@ static int has_nv_pointer(const char *s, int len)
             while (word_end < len && is_namechar(s[word_end])) word_end++;
             while (line_end < len && s[line_end] != '\n') line_end++;
             int word_len = word_end - n;
+            if (word_len == 5 && memcmp(s + n, "error", 5) == 0) {
+                /* Diagnostic text is not GLSL, e.g. SMAA_GLSL_* or ... . */
+                i = line_end - 1;
+                continue;
+            }
             if (!branch_skipped && word_len == 9 &&
                 memcmp(s + n, "extension", 9) == 0) {
                 int e = n + 9;
@@ -24107,9 +24132,14 @@ static int make_regular_depth_replay_translation(
     const char *begin[8], *end[8], *limit;
     int n = 0;
     if (!src || len <= 0 || !out || cap <= 0) return -1;
+    int wrapped =
+        contains_n(src, len, "void fgo_original_main(") &&
+        contains_n(src, len, "uniform float fgo_effect_opacity;");
     /* PR depth has no dissolve branch; its nondithered/non-punch body is
        constant. Other source shapes fall back to the normal translation. */
     if (!contains_n(src, len, "float sample_dissolve_noise(")) {
+        /* A replacement main would bypass the client's opacity wrapper. */
+        if (wrapped) return -1;
         static const char constant_depth[] =
             "#version 450\n"
             "#define AMD_SHIM_REGULAR_DEPTH_TRANSLATED 1\n"
@@ -24159,6 +24189,19 @@ static int make_regular_depth_replay_translation(
         memcpy(out + n, begin[i], (size_t)bytes);
         n += bytes;
         out[n++] = '\n';
+    }
+    if (wrapped) {
+        /* The client hook appends its uniforms and entry after this branch.
+           Preserve the whole suffix, including discard/alpha logic. */
+        const char *tail = strstr(end[7], "#endif//DEPTH_ONLY");
+        if (!tail || tail >= limit) return -1;
+        tail = (const char *)memchr(tail, '\n', (size_t)(limit - tail));
+        if (!tail) return -1;
+        ++tail;
+        int bytes = (int)(limit - tail);
+        if (bytes >= cap - n) return -1;
+        memcpy(out + n, tail, (size_t)bytes);
+        n += bytes;
     }
     if ((int)sizeof tag > cap - n) return -1;
     memcpy(out + n, tag, sizeof tag);
@@ -30737,7 +30780,7 @@ static int shader_cache_path(GLuint shader, GLenum type, const char *source,
        serialized metadata changes. */
     *ha = shader_cache_hash(source, len, type, 1469598103934665603ULL);
     *hb = shader_cache_hash(source, len, type, 1099511628211ULL ^ 0x5348494d43414348ULL);
-    if (_snprintf(path, cap, "%s\\shader-cache-r2\\%08x-%016llx-%016llx.glsl",
+    if (_snprintf(path, cap, "%s\\shader-cache-r5\\%08x-%016llx-%016llx.glsl",
                   module, (unsigned)type,
                   (unsigned long long)*ha, (unsigned long long)*hb) < 0) return 0;
     path[cap - 1] = 0;
@@ -30781,8 +30824,8 @@ static int shader_cache_try_load(GLuint shader, GLenum type, const char *source,
     if (!shader_cache_path(shader, type, source, len, path, sizeof path, &ha, &hb)) return 0;
     f = fopen(path, "rb");
     if (!f) return 0;
-    if (fread(&h, 1, sizeof h, f) != sizeof h || memcmp(h.magic, "FGOSHDR2", 8) != 0 ||
-        h.version != 2 || h.shader_type != type || h.reserved != 0 ||
+    if (fread(&h, 1, sizeof h, f) != sizeof h || memcmp(h.magic, "FGOSHDR5", 8) != 0 ||
+        h.version != 5 || h.shader_type != type || h.reserved != 0 ||
         h.source_len != len || h.hash_a != ha || h.hash_b != hb ||
         h.output_len == 0 || h.output_len > 64U * 1024U * 1024U ||
         h.pointer_size != sizeof g_shader_ptrs[shader]) { fclose(f); return 0; }
@@ -30816,7 +30859,7 @@ static void shader_cache_write(GLuint shader, GLenum type, const char *source,
     CreateDirectoryA(dir, NULL);
     _snprintf(temp, sizeof temp, "%s.tmp.%lu", path, (unsigned long)GetCurrentProcessId());
     f = fopen(temp, "wb"); if (!f) return;
-    memset(&h, 0, sizeof h); memcpy(h.magic, "FGOSHDR2", 8); h.version = 2;
+    memset(&h, 0, sizeof h); memcpy(h.magic, "FGOSHDR5", 8); h.version = 5;
     h.shader_type = type; h.source_len = len;
     h.output_len = g_shader_cache_capture_len; h.pointer_size = sizeof g_shader_ptrs[shader];
     h.hash_a = ha; h.hash_b = hb;
@@ -33843,6 +33886,29 @@ static BOOL WINAPI wrap_wglDXSetResourceShareHandleNV(void *dxObject, HANDLE sha
     return r;
 }
 
+#ifndef SHIM_FORCE_SWAP_INTERVAL_ZERO
+#define SHIM_FORCE_SWAP_INTERVAL_ZERO 1
+#endif
+#if SHIM_FORCE_SWAP_INTERVAL_ZERO
+typedef BOOL (WINAPI *wglSwapIntervalEXT_t)(int);
+static wglSwapIntervalEXT_t real_wglSwapIntervalEXT;
+typedef int (WINAPI *wglGetSwapIntervalEXT_t)(void);
+static wglGetSwapIntervalEXT_t real_wglGetSwapIntervalEXT;
+
+static BOOL WINAPI wrap_wglSwapIntervalEXT(int interval)
+{
+    /* Keep the CPU limiter as the only 60 Hz pacing source. */
+    if (interval == 1) interval = 0;
+    return real_wglSwapIntervalEXT(interval);
+}
+
+static int WINAPI wrap_wglGetSwapIntervalEXT(void)
+{
+    /* Match the interval-0 request exposed by the companion setter. */
+    return 0;
+}
+#endif
+
 /* ---------- wglCreateContextAttribsARB tracing ---------- */
 typedef HGLRC (WINAPI *wglCreateContextAttribsARB_t)(HDC, HGLRC, const int *);
 static wglCreateContextAttribsARB_t real_wglCreateContextAttribsARB;
@@ -33900,6 +33966,20 @@ PROC WINAPI wglGetProcAddress_shim(LPCSTR name)
     unsigned nv_resolution;
     int unknown_nv;
     if (!name || !real_wglGetProcAddress) return NULL;
+#if SHIM_FORCE_SWAP_INTERVAL_ZERO
+    if (strcmp(name, "wglSwapIntervalEXT") == 0) {
+        p = real_wglGetProcAddress(name);
+        if ((uintptr_t)p <= 3 || (uintptr_t)p == UINTPTR_MAX) return p;
+        real_wglSwapIntervalEXT = (wglSwapIntervalEXT_t)p;
+        return (PROC)wrap_wglSwapIntervalEXT;
+    }
+    if (strcmp(name, "wglGetSwapIntervalEXT") == 0) {
+        p = real_wglGetProcAddress(name);
+        if ((uintptr_t)p <= 3 || (uintptr_t)p == UINTPTR_MAX) return p;
+        real_wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_t)p;
+        return (PROC)wrap_wglGetSwapIntervalEXT;
+    }
+#endif
     {
         static int wgl_looked;
         if (wgl_looked < 6000) {

@@ -8,6 +8,8 @@ Only **AMD Radeon RX 7900 XTX** has been tested. In the latest PVP test, perform
 
 This update fixes stretched, multicolored castle-wall textures on an additional map. It also includes the earlier ranged-attack trail, London white-flash and shader recovery fixes.
 
+Presentation requests swap interval 0; the embedded CPU limiter remains the sole 60 FPS pacing source.
+
 ## Install and Restore
 
 1. Extract the entire archive and close the game.

@@ -7,7 +7,7 @@
   "battle_ui_capture_host.h", "battle_ui_state_watch.h", "servant_dissolve_capture.h",
   "perf_depth_copy.h", "perf_emitter_header.h", "perf_regular_samplers.h", "perf_sampler_uploads.h",
   "perf_mapped_read_cache.h", "perf_mapped_lifetime_audit.h",
-  "release/embedded-profile.json", "release/install.ps1", "release/package-gui.ps1",
+  "release/install.ps1", "release/package-gui.ps1",
   "release/source-files.json", "release/gui/Installer.cs", "release/gui/app.manifest",
   "release/gui/build.ps1", "release/gui/gui-action.ps1", "release/gui/SOURCE.md",
   "release/gui/README.zh-CN.md", "release/gui/README.en.md", "release/gui/README.ja.md",

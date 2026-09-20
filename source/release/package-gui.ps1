@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Destination,
-    [string]$ReleaseId = '20260916-castle-background',
     [string]$BuildDirectory = 'build\gui-release',
     [string]$ReferenceRenderer = '..\game-patch\opengl32.dll'
 )
@@ -17,7 +16,6 @@ New-Item -ItemType Directory -Path $build -Force | Out-Null
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 Push-Location $root
 try {
-    $revision = 'af248dabe993f527d3d4de43a4af4dcc79c04554'
     $sourceFiles = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-files.json') -Raw | ConvertFrom-Json
 
     $linkerName = Split-Path -Leaf $ReferenceRenderer
@@ -25,13 +23,13 @@ try {
     & (Join-Path $PSScriptRoot 'gui\build.ps1') -Output (Join-Path $build 'FgoAmdPatch.exe') *> (Join-Path $build 'gui-build.log')
     $dll = Join-Path $build $linkerName
     $reference = if ([IO.Path]::IsPathRooted($ReferenceRenderer)) { $ReferenceRenderer } else { Join-Path $root $ReferenceRenderer }
-    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne 'F652D4FC32EFD3095283E503888C0D8630A206811F90A743A2B65B466C80F5B7') {
-        throw 'Reference is not the user-confirmed baseline DLL.'
+    if ((Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash -ne '14E3EA5C70F21AE70B2D00AEC0CD066076225DAFE3EC084F2D43DBAD72556EB1') {
+        throw 'Reference DLL does not match the package baseline.'
     }
     & python (Join-Path $root 'tests\release_binary_compare.py') $reference $dll
     if ($LASTEXITCODE -ne 0) { throw 'The release renderer differs from the deployed source build.' }
 
-    New-Item -ItemType Directory -Path (Join-Path $package 'game-patch'), (Join-Path $package 'source'), (Join-Path $package 'verification') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $package 'game-patch'), (Join-Path $package 'source') | Out-Null
     Copy-Item -LiteralPath $reference -Destination (Join-Path $package 'game-patch\opengl32.dll')
     Copy-Item -LiteralPath (Join-Path $build 'amdcfg') -Destination (Join-Path $package 'game-patch\amdcfg') -Recurse
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'install.ps1') -Destination (Join-Path $package 'game-patch\install.ps1')
@@ -48,34 +46,17 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gui\SOURCE.md') -Destination (Join-Path $package 'source\README.md')
     & (Join-Path $package 'source\tools\build-tools.ps1') *> (Join-Path $build 'sampler-build.log')
-    $compilerVersion = (& x86_64-w64-mingw32-gcc.exe --version | Select-Object -First 1)
-
-    function Write-Manifest {
-        $files = @(
+    function Write-Checksums {
+        $hashLines = @(
             foreach ($file in Get-ChildItem -LiteralPath $package -Recurse -File | Sort-Object FullName) {
                 $relative = $file.FullName.Substring($package.Length + 1).Replace('\', '/')
-                if ($relative -in @('release.json', 'SHA256SUMS.txt')) { continue }
-                [ordered]@{ path = $relative; bytes = $file.Length; sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+                if ($relative -eq 'SHA256SUMS.txt') { continue }
+                '{0}  {1}' -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash, $relative
             }
         )
-        $manifest = [ordered]@{
-            schema = 1; release_id = $ReleaseId; baseline = $ReleaseId; source_revision = $revision
-            renderer_commit = $revision
-            architecture = 'AMD64'; pacing_hz = 60; configuration = 'embedded'
-            supported_resolution = @(1920,1080); other_resolutions = 'Known rendering errors'
-            tested_gpu = 'AMD Radeon RX 7900 XTX'; performance_scope = 'User reports almost entirely 60 FPS in PVP, briefly about 57 FPS on servant switches; other GPUs and modes unverified'
-            compiler = $compilerVersion; source_inventory = 'source/release/source-files.json'
-            created_at = [DateTimeOffset]::Now.ToString('o')
-            renderer_reference_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
-            build_command = "x86_64-w64-mingw32-gcc.exe -O2 -shared -o $linkerName shim.c shim.def -lgdi32 -luser32"
-            packaged_dll_name = 'game-patch/opengl32.dll'
-            visual_status = 'User confirmed the castle-wall correction and earlier ranged-attack and London fixes. Texcoord rollback passed offline AMD regression; external-client startup remains unverified.'
-            files = $files
-        }
-        [IO.File]::WriteAllText((Join-Path $package 'release.json'), ($manifest | ConvertTo-Json -Depth 6), $utf8)
+        [IO.File]::WriteAllLines((Join-Path $package 'SHA256SUMS.txt'), [string[]]$hashLines, $utf8)
     }
-    Write-Manifest
-
+    Write-Checksums
     $compiler = Join-Path ([Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()) 'csc.exe'
     $testSource = Join-Path $root 'tests\gui_release_test.cs'
     $testExe = Join-Path $build 'GuiReleaseTest.exe'
@@ -89,8 +70,6 @@ try {
     $testRun = Join-Path $build ('install-test-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     & $testExe $package $testRun $stub
     if ($LASTEXITCODE -ne 0) { throw "GUI integration tests failed. Evidence: $testRun" }
-    Copy-Item -LiteralPath (Join-Path $testRun 'gui-validation.json'), (Join-Path $testRun 'gui-preview.png') -Destination (Join-Path $package 'verification')
-
     $rebuildDirectory = Join-Path $build 'packaged-source'
     New-Item -ItemType Directory -Path $rebuildDirectory -Force | Out-Null
     $rebuilt = Join-Path $rebuildDirectory $linkerName
@@ -105,33 +84,13 @@ try {
     & python (Join-Path $root 'tests\release_binary_compare.py') $reference $rebuilt
     if ($LASTEXITCODE -ne 0) { throw 'Packaged renderer source differs from the release DLL.' }
     & (Join-Path $package 'source\tools\run-fixtures.ps1') -Driver -Benchmarks *> (Join-Path $build 'packaged-fixtures.log')
-    $fixtureResults = Join-Path $package 'source\build\release-fixtures'
-    foreach ($name in @('summary.json','mapped-sampler.json','mapped-memory.json')) {
-        Copy-Item -LiteralPath (Join-Path $fixtureResults $name) -Destination (Join-Path $package ('verification\' + $name))
-    }
-    Copy-Item -LiteralPath (Join-Path $fixtureResults 'regular-sampler\driver-test.json') -Destination (Join-Path $package 'verification\regular-sampler-driver.json')
-    # Build products belong to verification, not the source distribution.
+    # Fixture output is build evidence, not part of the user-facing package.
     $generatedBuild = [IO.Path]::GetFullPath((Join-Path $package 'source\build'))
     if ($generatedBuild -ne ($package + '\source\build')) { throw 'Unexpected fixture output directory.' }
     Remove-Item -LiteralPath $generatedBuild -Recurse -Force
-    [ordered]@{
-        renderer_commit = $revision; renderer_sha256 = (Get-FileHash -LiteralPath $reference -Algorithm SHA256).Hash
-        source_sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'source\shim.c') -Algorithm SHA256).Hash
-        release_matches_deployed_renderer_except_pe_metadata = $true
-        packaged_source_rebuild_matches_except_pe_metadata = $true
-        gui_integration_tests_passed = $true; external_marker_files_required = $false
-        packaged_driver_fixtures_passed = $true; packaged_dll_byte_identical_to_tested = $true
-        capture_layer_packaged = $false; live_game_modified = $false
-    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'verification\release-audit.json') -Encoding UTF8
-    Write-Manifest
-    $hashLines = @(
-        foreach ($file in Get-ChildItem -LiteralPath $package -Recurse -File | Sort-Object FullName) {
-            '{0}  {1}' -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash, $file.FullName.Substring($package.Length + 1).Replace('\', '/')
-        }
-    )
-    [IO.File]::WriteAllLines((Join-Path $package 'SHA256SUMS.txt'), [string[]]$hashLines, $utf8)
+    Write-Checksums
     Compress-Archive -LiteralPath $package -DestinationPath $zip -CompressionLevel Optimal
     $zipHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
     [IO.File]::WriteAllText(($zip + '.sha256'), ($zipHash + '  ' + (Split-Path -Leaf $zip) + "`r`n"), $utf8)
-    [pscustomobject]@{ Package = $package; Zip = $zip; SourceCommit = $revision; ZipSHA256 = $zipHash }
+    [pscustomobject]@{ Package = $package; Zip = $zip; ZipSHA256 = $zipHash }
 } finally { Pop-Location }

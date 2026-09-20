@@ -1,4 +1,4 @@
-/* Generated from the accepted release profile; see release/embedded-profile.json. */
+/* Generated from the accepted embedded release profile. */
 #ifndef SHIM_PROFILE_H
 #define SHIM_PROFILE_H
 

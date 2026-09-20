@@ -74,14 +74,26 @@ if ($PSCmdlet.ParameterSetName -eq 'Restore') {
 }
 
 $packageRoot = Split-Path -Parent $PSScriptRoot
-$manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'release.json') -Raw | ConvertFrom-Json
+$checksumsPath = Join-Path $packageRoot 'SHA256SUMS.txt'
+if (-not (Test-Path -LiteralPath $checksumsPath -PathType Leaf)) {
+    throw 'Package checksum list is missing.'
+}
+$checksums = @{}
+foreach ($line in Get-Content -LiteralPath $checksumsPath) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    $parts = $line -split '\s+', 2
+    if ($parts.Count -eq 2 -and $parts[0] -match '^[0-9A-Fa-f]{64}$') {
+        $checksums[$parts[1].TrimStart('*')] = $parts[0].ToUpperInvariant()
+    }
+}
 foreach ($relative in @('game-patch/opengl32.dll', 'game-patch/install.ps1', 'game-patch/amdcfg/amdOglpSettings.cfg')) {
-    $entry = @($manifest.files | Where-Object { $_.path -eq $relative })
-    if ($entry.Count -ne 1 -or (Get-Digest (Join-Path $packageRoot $relative)) -ne $entry[0].sha256) {
+    if (-not $checksums.ContainsKey($relative)) {
+        throw "Package checksum is missing: $relative"
+    }
+    if ((Get-Digest (Join-Path $packageRoot $relative)) -ne $checksums[$relative]) {
         throw "Package hash mismatch: $relative"
     }
 }
-if ($manifest.configuration -ne 'embedded') { throw 'Expected an embedded-configuration release.' }
 
 $staging = $PSCmdlet.ParameterSetName -eq 'Stage'
 if ($staging) {
@@ -97,7 +109,7 @@ $systemOpenGL = Join-Path ([Environment]::SystemDirectory) 'opengl32.dll'
 $systemHash = Get-Digest $systemOpenGL
 $candidate = Join-Path $PSScriptRoot 'opengl32.dll'
 $candidateHash = Get-Digest $candidate
-if (-not $PSCmdlet.ShouldProcess($app, "Install $($manifest.baseline) OpenGL DLLs")) { return }
+if (-not $PSCmdlet.ShouldProcess($app, 'Install embedded 60 Hz OpenGL DLLs')) { return }
 if (-not $staging) { Assert-GameStopped $app }
 
 $backupName = (Get-Date -Format 'yyyyMMdd_HHmmss') + '_' + [Guid]::NewGuid().ToString('N').Substring(0,8)
@@ -119,7 +131,7 @@ $savedDlls = @(
     }
 )
 $snapshot = [pscustomobject]@{
-    schema = 3; baseline = $manifest.baseline; app = $app; amdcfg_existed = $configExisted
+    schema = 3; baseline = 'embedded-60hz'; app = $app; amdcfg_existed = $configExisted
     staging = $staging; dlls = $savedDlls
     installed_sha256 = $candidateHash; system_opengl_sha256 = $systemHash
 }
@@ -145,4 +157,4 @@ try {
     try { Restore-Snapshot $snapshot $backup } catch { throw "Install failed: $failure. Restore also failed: $_. Backup: $backup" }
     throw "Installation failed and the old files were restored: $failure"
 }
-[pscustomobject]@{ Result = 'Installed'; Baseline = $manifest.baseline; GameApp = $app; Backup = $backup; SHA256 = $candidateHash; Staging = $staging }
+[pscustomobject]@{ Result = 'Installed'; GameApp = $app; Backup = $backup; SHA256 = $candidateHash; Staging = $staging }

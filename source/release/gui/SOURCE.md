@@ -16,8 +16,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\gui\build.ps1
 ```
 
 Renderer output: `build/opengl32.dll` and `build/amdcfg/amdOglpSettings.cfg`.
-The GUI output is `build/gui-release/FgoAmdPatch.exe`. It uses `game-patch` and
-`release.json` in the release root.
+The GUI output is `build/gui-release/FgoAmdPatch.exe`. The installer uses the
+files under `game-patch` and validates them against `SHA256SUMS.txt`.
 
 ## Capture and Stop
 
@@ -106,8 +106,8 @@ The test requires NumPy, included in `tools/requirements.txt`. It checks stale
 SSBO bindings, UBO range changes and pointer writes with caches enabled and
 disabled, plus a compute shader that uses no translated pointers. Expected
 output has `all_fixed: true`; a failure exits with an error. This is a controlled
-shader regression, not a complete battle replay. Results from the previous and
-fixed implementations are in `../verification/compute-pointer-*.json`.
+shader regression, not a complete battle replay. The test result is written to
+the selected build directory.
 
 ## Trail Vertex Binding and Shader Recovery
 
@@ -136,11 +136,10 @@ x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\texcoord_link_wrapper.c -o "$out\
 python .\tests\texcoord_link_driver_test.py --wrapper "$out\wrapper.dll" --output "$out\result.json"
 ```
 
-Both tests use an AMD OpenGL context and the existing Python dependencies.
-Results are included in `../verification/trail-vertex.json` and
-`../verification/texcoord-rollback.json`. Restoring a rejected shader adjustment
-does not fix a genuine vertex/fragment interface mismatch or establish support
-for other game-client versions.
+Both tests use an AMD OpenGL context and the existing Python dependencies. Their
+results are written to the selected build directory. Restoring a rejected shader
+adjustment does not fix a genuine vertex/fragment interface mismatch or establish
+support for other game-client versions.
 
 ## Castle Background Vertex Layout
 
@@ -158,8 +157,8 @@ python .\tests\castle_vertex_driver_test.py "$out\wrapper.dll" .\tests\fixtures\
 
 The fixture includes only the two relevant vertex prefixes, not a full scene.
 It uses the same AMD OpenGL context and Python dependencies as the trail test.
-Expected results are in `../verification/castle-vertex.json`; all corrected
-cases have zero incorrect UV and color vertices.
+All corrected cases have zero incorrect UV and color vertices; the result is
+written to the selected build directory.
 
 ## Reuse an Existing Shader Cache
 

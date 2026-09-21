@@ -64,6 +64,18 @@ class GuiReleaseTest
         Check(Directory.GetFiles(app, "*.on", SearchOption.AllDirectories).Length == 0, "Marker files were installed");
     }
 
+
+    static Button FindButton(Control root, string text)
+    {
+        Button button = root as Button;
+        if (button != null && button.Text == text) return button;
+        foreach (Control child in root.Controls) {
+            Button found = FindButton(child, text);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     static IntPtr RealizePreviewHandles(Control control)
     {
         IntPtr handle = control.Handle;
@@ -154,15 +166,51 @@ class GuiReleaseTest
             }
             passed.Add("running_game_rejected_without_stopping_process_or_writes");
 
+            Check(UiText.Normalize(null) == "en", "null language defaults to English");
+            Check(UiText.Normalize("") == "en", "empty language defaults to English");
+            Check(UiText.Normalize("fr-FR") == "en", "unsupported language defaults to English");
+            Check(UiText.Normalize("en-US") == "en", "en-US maps to English");
+            Check(UiText.Normalize("zh") == "zh" && UiText.Normalize("zh-CN") == "zh" && UiText.Normalize("zh-TW") == "zh" && UiText.Normalize("zh-HK") == "zh", "Chinese cultures map to zh");
+            Check(UiText.Normalize("ja") == "ja" && UiText.Normalize("ja-JP") == "ja", "Japanese cultures map to ja");
+            passed.Add("ui_language_defaults_to_english_and_maps_zh_ja");
+
+            var previousCulture = System.Threading.Thread.CurrentThread.CurrentUICulture;
+            string previousLanguage = Environment.GetEnvironmentVariable("FGO_PATCH_UI_LANG");
+            try {
+                Environment.SetEnvironmentVariable("FGO_PATCH_UI_LANG", null);
+                string[] cultures = { "en-US", "zh-CN", "zh-TW", "ja-JP", "fr-FR" };
+                string[] expected = { "en", "zh", "zh", "ja", "en" };
+                for (int i = 0; i < cultures.Length; ++i) {
+                    System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo(cultures[i]);
+                    UiText.Select(null);
+                    Check(UiText.Language == expected[i], cultures[i] + " automatic language selection");
+                }
+            } finally {
+                System.Threading.Thread.CurrentThread.CurrentUICulture = previousCulture;
+                Environment.SetEnvironmentVariable("FGO_PATCH_UI_LANG", previousLanguage);
+                UiText.Select(null);
+            }
+            passed.Add("automatic_windows_ui_language_selection_and_english_fallback");
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            using (InstallerForm form = new InstallerForm()) {
-                RealizePreviewHandles(form);
-                using (Bitmap bitmap = new Bitmap(form.Width, form.Height)) {
-                    form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
-                    bitmap.Save(Path.Combine(run, "gui-preview.png"));
+            string[] languages = new string[] { "en", "zh", "ja" };
+            foreach (string language in languages) {
+                UiText.Select(language);
+                using (InstallerForm form = new InstallerForm()) {
+                    RealizePreviewHandles(form);
+                    Check(form.Text == UiText.Get("WindowTitle"), language + " window title");
+                    Check(FindButton(form, UiText.Get("Install")) != null, language + " install button");
+                    Check(FindButton(form, UiText.Get("Restore")) != null, language + " restore button");
+                    Check(FindButton(form, UiText.Get("Browse")) != null, language + " browse button");
+                    using (Bitmap bitmap = new Bitmap(form.Width, form.Height)) {
+                        form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+                        bitmap.Save(Path.Combine(run, "gui-preview-" + language + ".png"));
+                        if (language == "en") bitmap.Save(Path.Combine(run, "gui-preview.png"));
+                    }
                 }
             }
+            UiText.Select(null);
             passed.Add("gui_constructed_and_rendered_without_showing_window");
             var report = new {
                 passed = true, checks = passed, renderer_sha256 = rendererHash,

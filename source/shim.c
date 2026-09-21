@@ -34297,22 +34297,58 @@ static void pace_wait_until(LARGE_INTEGER *now, LONGLONG deadline, LONGLONG freq
     }
 }
 
-/* Keep the established frame boundary and 60 Hz scheduling policy. A late
-   frame resets from its actual arrival; it never starts a catch-up burst. */
+typedef struct {
+    LONGLONG frequency, deadline, last;
+    unsigned remainder;
+    int started;
+} pace_schedule;
+
+/* Keep sub-millisecond wake jitter out of subsequent frame deadlines. */
+static LONGLONG pace_schedule_deadline(pace_schedule *s, LONGLONG now,
+                                       LONGLONG frequency)
+{
+    if (!s->started || s->frequency != frequency || now < s->last) {
+        s->frequency = frequency;
+        s->deadline = now;
+        s->remainder = 0;
+        s->started = 1;
+    }
+    return s->deadline;
+}
+
+static void pace_schedule_release(pace_schedule *s, LONGLONG now)
+{
+    /* Never repay a long render/loading stall as a burst of fast frames.
+       At most 1 ms of lateness is recovered by the following frame. */
+    if (now - s->deadline > s->frequency / 1000) {
+        s->deadline = now;
+        s->remainder = 0;
+    }
+    s->last = now;
+    s->deadline += s->frequency / 60;
+    s->remainder += (unsigned)(s->frequency % 60);
+    if (s->remainder >= 60) {
+        s->deadline++;
+        s->remainder -= 60;
+    }
+}
+
+/* Pace once at the established game boundary. Time already spent rendering
+   or presenting counts toward the deadline, not an additional full wait. */
 static void pace_frame_60hz(void)
 {
     static LARGE_INTEGER freq;
-    static LARGE_INTEGER last;
+    static pace_schedule schedule;
     LARGE_INTEGER now;
     if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&now);
-    if (last.QuadPart != 0 && freq.QuadPart > 0) {
-        const LONGLONG target = freq.QuadPart / 60;
-        LONGLONG remaining = target - (now.QuadPart - last.QuadPart);
-        if (remaining > 0)
-            pace_wait_until(&now, last.QuadPart + target, freq.QuadPart);
+    if (freq.QuadPart >= 60) {
+        LONGLONG deadline = pace_schedule_deadline(&schedule, now.QuadPart,
+                                                  freq.QuadPart);
+        if (now.QuadPart < deadline)
+            pace_wait_until(&now, deadline, freq.QuadPart);
+        pace_schedule_release(&schedule, now.QuadPart);
     }
-    last = now;
 }
 
 static void frame_boundary_bookkeeping(void)

@@ -18,6 +18,8 @@
   "tests/battle_counter_live.py", "tests/battle_lowfps_stacks.py", "tests/battle_cpu_sample.c",
   "tests/capture_release_test.py", "tests/capture_release_fixture.c",
   "tests/gui_release_test.cs", "tests/release_binary_compare.py",
+  "tests/frame_pacing_test.c", "tests/vao_frame_boundary_test.c",
+  "tests/vao_frame_boundary_helper.c",
   "tests/battle_window_driver_reflection.py", "tests/sampler_failure_metadata.py",
   "tests/regular_sampler_wrapper.c", "tests/regular_sampler_driver_test.py",
   "tests/mapped_read_cache_wrapper.c", "tests/mapped_read_cache_driver_test.py",

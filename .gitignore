@@ -10,3 +10,4 @@ source/build/
 source/captures/
 __pycache__/
 *.pyc
+/build/

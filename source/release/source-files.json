@@ -1,5 +1,6 @@
 [
   "shim.c", "shim.def", "build.ps1", "shim_profile.h",
+  "present_timeline.h", "submission_gpu_profile.h",
   "battle_driver_errors.h", "battle_formation_capture.h", "battle_frame_entry.h",
   "battle_load_trace.h", "battle_observe.h", "battle_pass_completion.h",
   "battle_present_front_blit.h", "battle_refraction_capture.h", "battle_resource_boundary.h",
@@ -10,7 +11,7 @@
   "release/install.ps1", "release/package-gui.ps1",
   "release/source-files.json", "release/gui/Installer.cs", "release/gui/app.manifest",
   "release/gui/build.ps1", "release/gui/gui-action.ps1", "release/gui/SOURCE.md",
-  "release/gui/README.zh-CN.md", "release/gui/README.en.md", "release/gui/README.ja.md",
+  "release/gui/README.md", "release/gui/README.zh-CN.md", "release/gui/README.ja.md",
   "tools/start-capture.ps1", "tools/stop-capture.ps1", "tools/build-tools.ps1",
   "tools/analyze-capture.py", "tools/run-fixtures.ps1", "tools/requirements.txt",
   "tools/migrate-shader-cache.py", "tests/external_optimization_wrapper.c",

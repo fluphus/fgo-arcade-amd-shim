@@ -49,6 +49,7 @@ __declspec(dllexport) int TestRegularInstall(HMODULE module, wglGetProcAddress_t
    the production query-cache branch without bypassing its validity checks. */
 __declspec(dllexport) void TestRegularSeedState(GLuint program)
 {
+    if (!perf_rs_api()) return;
     g_perf_rs_units_known=0; /* Setup in this fixture uses unwrapped real GL. */
     g_perf_rs_state_cache_on=1;
     g_current_program=program;
@@ -345,6 +346,11 @@ __declspec(dllexport) int TestRegularTargetBind(int enabled)
     g_perf_rs_gl.bind_multi_tex=enabled
         ? (__typeof__(g_perf_rs_gl.bind_multi_tex))perf_rs_proc("glBindMultiTextureEXT") : NULL;
     return g_perf_rs_gl.bind_multi_tex!=NULL;
+}
+
+__declspec(dllexport) void TestRegularBatchProgram(int enabled)
+{
+    g_perf_rs_batch_program_on=enabled;
 }
 
 /* Exercise actual draws and sampler scopes in one current AMD context. */

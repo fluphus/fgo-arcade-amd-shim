@@ -4,7 +4,11 @@ $ErrorActionPreference = 'Stop'
 $capture = (Resolve-Path -LiteralPath $CaptureDirectory).Path
 $manifest = Get-Content -LiteralPath (Join-Path $capture 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 [IO.File]::WriteAllText((Join-Path $capture 'stop_capture'), '')
-$observerIds = @($manifest.collector_pid, $manifest.stack_watcher_pid) | Where-Object { $_ }
+if ($manifest.presentmon_pid -and (Get-Process -Id $manifest.presentmon_pid -ErrorAction SilentlyContinue)) {
+    & $manifest.presentmon_executable --session_name $manifest.presentmon_session --terminate_existing_session
+    if ($LASTEXITCODE -ne 0) { throw 'PresentMon stop failed; leave the session running and inspect its log.' }
+}
+$observerIds = @($manifest.collector_pid, $manifest.stack_watcher_pid, $manifest.presentmon_pid) | Where-Object { $_ }
 $deadline = [DateTime]::UtcNow.AddSeconds(20)
 do {
     $running = @($observerIds | ForEach-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue })

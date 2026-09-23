@@ -1,16 +1,14 @@
-# FGO Arcade AMD 补丁 · 2026.09.22
+# FGO Arcade AMD 补丁 · 2026.09.23
 
-[English](README.en.md) | [日本語](README.ja.md)
+[English](README.md) | [日本語](README.ja.md)
 
 **补丁内置锁定 60 FPS。**
 
-本次改进 60 FPS 限帧器，避免计时误差逐帧累积。包含此前的渲染修复。
+画面撕裂由右下角一个不透明的 1 像素消除，无需开启垂直同步。
 
 ## 显示设置
 
-请关闭额外的限帧设置，例如 RTSS 中针对 `ago.exe` 的限帧，避免与内置 60 FPS 限帧叠加。
-
-如果发现画面撕裂，可以在 AMD Software: Adrenalin Edition 中尝试开启 **Radeon 增强同步（Enhanced Sync）**。如果普通垂直同步导致掉帧，可尝试将「等待垂直刷新」设为「始终关闭」，同时保留增强同步。效果可能因显卡和驱动版本而异。
+请关闭额外的限帧设置，例如 RTSS 中针对 `ago.exe` 的限帧，避免与内置 60 FPS 限帧叠加。请保持「等待垂直刷新」关闭。
 
 ## 安装与恢复
 

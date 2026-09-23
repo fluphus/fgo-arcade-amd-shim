@@ -64,7 +64,7 @@ int main(int argc, char **argv)
         unsigned long long before = g_frame_count;
         unsigned calls_before = driver_calls;
         QueryPerformanceCounter(&start);
-        for (int frame = 0; frame < 24; ++frame) {
+        for (int frame = 0; frame < 240; ++frame) {
             wrap_glBindVertexArray(1);
             wrap_glBindVertexArray(0);
             if (external) restore(wrap_glBindVertexArray);
@@ -72,9 +72,11 @@ int main(int argc, char **argv)
         QueryPerformanceCounter(&end);
         double seconds = (double)(end.QuadPart-start.QuadPart)/frequency.QuadPart;
         printf("external_restore=%d boundaries=%llu driver_calls=%u seconds=%.6f logical_fps=%.3f\n",
-               external, g_frame_count-before, driver_calls-calls_before, seconds, 24.0/seconds);
-        if (g_frame_count-before != 24 || driver_vao != 0 || g_current_vao != 0 ||
-            driver_calls-calls_before != 48u*(external+1)) return 1;
+               external, g_frame_count-before, driver_calls-calls_before, seconds, 240.0/seconds);
+        if (g_frame_count-before != 240 || driver_vao != 0 || g_current_vao != 0 ||
+            driver_calls-calls_before != 480u*(external+1)) return 1;
+        /* An accidentally retained 60 Hz limiter takes four seconds here. */
+        if (seconds >= 2.0) return 9;
     }
     puts("RESULT failures=0");
     FreeLibrary(helper);

@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory)][string]$GameDirectory,
     [ValidateRange(1,86400)][int]$Seconds = 600,
     [string]$OutputDirectory,
-    [switch]$MappedLifetimeAudit
+    [switch]$MappedLifetimeAudit,
+    [switch]$PresentTimeline,
+    [string]$PresentMonPath
 )
 $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitProcess) { throw 'Use 64-bit PowerShell.' }
@@ -21,7 +23,10 @@ $null = Get-Command llvm-nm.exe -ErrorAction Stop
 & $python -c "import struct, pefile; assert struct.calcsize('P') == 8"
 if ($LASTEXITCODE -ne 0) { throw 'Install 64-bit Python and pefile (python -m pip install pefile).' }
 $sampler = Join-Path $PSScriptRoot 'bin\battle_cpu_sample.exe'
-if (-not (Test-Path -LiteralPath $sampler)) { throw 'Build the sampler using tools\build-tools.ps1 first.' }
+if (-not $PresentTimeline -and -not (Test-Path -LiteralPath $sampler)) { throw 'Build the sampler using tools\build-tools.ps1 first.' }
+if ($PresentTimeline -and (-not $PresentMonPath -or -not (Test-Path -LiteralPath $PresentMonPath))) {
+    throw 'Supply -PresentMonPath pointing to PresentMon 2.5.1.'
+}
 $capture = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else {
     Join-Path $root ('captures\battle_' + (Get-Date -Format yyyyMMdd_HHmmss))
 }
@@ -38,6 +43,10 @@ if ($MappedLifetimeAudit) {
     $auditSymbols = @(& llvm-nm.exe --defined-only $renderer | Select-String ' g_perf_mapped_audit_(reads|flushes|changed|mismatches)$')
     if ($LASTEXITCODE -ne 0 -or $auditSymbols.Count -ne 4) { throw 'This DLL does not contain the mapped lifetime diagnostic. No capture started.' }
 }
+if ($PresentTimeline) {
+    $timelineSymbols = @(& llvm-nm.exe --defined-only $renderer | Select-String ' g_present_timeline_(records|sequence)$')
+    if ($LASTEXITCODE -ne 0 -or $timelineSymbols.Count -ne 2) { throw 'This DLL has no presentation timeline diagnostic. No capture started.' }
+}
 $imageBase = & $python -c 'import pefile, sys; print(pefile.PE(sys.argv[1], fast_load=True).OPTIONAL_HEADER.ImageBase)' $renderer
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read renderer image base.' }
 $programAddress = '0x{0:x}' -f ($loaded[0].Base + [Convert]::ToInt64(($programSymbol[0].Line -split '\s+')[0],16) - [long]$imageBase)
@@ -50,6 +59,7 @@ $manifest = [ordered]@{
     game_pid=$game[0].Id; renderer=$renderer; renderer_sha256=(Get-FileHash -LiteralPath $pinned -Algorithm SHA256).Hash
     seconds=$Seconds; poll_ms=250; program_address=$programAddress
     mapped_lifetime_audit=$MappedLifetimeAudit.IsPresent
+    present_timeline=$PresentTimeline.IsPresent
 }
 $manifestPath = Join-Path $capture 'manifest.json'
 $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
@@ -64,21 +74,44 @@ function Start-Observer([string[]]$Arguments, [string]$LogName) {
     $line = ($argv | ForEach-Object { Quote-Argument $_ }) -join ' '
     Start-Process -FilePath $python -ArgumentList $line -WorkingDirectory $root -WindowStyle Hidden -PassThru
 }
+$watcher = $null
+$present = $null
 try {
     $collector = Start-Observer @((Join-Path $root 'tests\battle_counter_live.py'),
         '--pid',"$($game[0].Id)",'--modules',(Join-Path $capture 'modules.json'),'--renderer',$renderer,
         '--symbol-file',$pinned,'--seconds',"$Seconds",'--output',(Join-Path $capture 'interval_samples.jsonl')) 'counter'
-    $watcher = Start-Observer @((Join-Path $root 'tests\battle_lowfps_stacks.py'),
-        '--capture',$capture,'--sampler',$sampler,'--program-address',$programAddress) 'watcher'
     $manifest.collector_pid = $collector.Id
-    $manifest.stack_watcher_pid = $watcher.Id
+    if ($PresentTimeline) {
+        $manifest.qpc_anchor = [Diagnostics.Stopwatch]::GetTimestamp()
+        $manifest.qpc_anchor_wall = [DateTimeOffset]::Now.ToString('o')
+        $manifest.qpc_frequency = [Diagnostics.Stopwatch]::Frequency
+        $manifest.presentmon_executable = (Resolve-Path -LiteralPath $PresentMonPath).Path
+        $manifest.presentmon_session = 'FgoTimeline_' + $game[0].Id + '_' + (Get-Date -Format yyyyMMdd_HHmmss)
+        $presentArgs = @('--process_id',"$($game[0].Id)",'--timed',"$Seconds",'--terminate_after_timed',
+            '--terminate_on_proc_exit','--session_name',$manifest.presentmon_session,
+            '--no_track_input','--no_console_stats','--v2_metrics','--qpc_time',
+            '--output_file',(Join-Path $capture 'present.csv'))
+        $line = ($presentArgs | ForEach-Object { Quote-Argument $_ }) -join ' '
+        $present = Start-Process -FilePath $manifest.presentmon_executable -ArgumentList $line -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput (Join-Path $capture 'present.stdout.log') -RedirectStandardError (Join-Path $capture 'present.stderr.log')
+        $manifest.presentmon_pid = $present.Id
+    } else {
+        $watcher = Start-Observer @((Join-Path $root 'tests\battle_lowfps_stacks.py'),
+            '--capture',$capture,'--sampler',$sampler,'--program-address',$programAddress) 'watcher'
+        $manifest.stack_watcher_pid = $watcher.Id
+    }
     $complete = Join-Path $capture 'manifest.complete.json'
     $manifest | ConvertTo-Json | Set-Content -LiteralPath $complete -Encoding UTF8
     [IO.File]::Replace($complete, $manifestPath, (Join-Path $capture 'manifest.initial.json'))
     Start-Sleep -Milliseconds 800
-    if ($collector.HasExited -or $watcher.HasExited) { throw 'A collector exited early. See counter/watcher stderr logs.' }
+    if ($collector.HasExited -or ($watcher -and $watcher.HasExited) -or ($present -and $present.HasExited)) {
+        throw 'A collector exited early. See capture stderr logs.'
+    }
 } catch {
     [IO.File]::WriteAllText((Join-Path $capture 'stop_capture'), '')
+    if ($present -and -not $present.HasExited) {
+        & $manifest.presentmon_executable --session_name $manifest.presentmon_session --terminate_existing_session
+    }
     throw
 }
 Write-Output "CAPTURE=$capture"

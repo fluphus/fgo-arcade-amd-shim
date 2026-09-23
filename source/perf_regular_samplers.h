@@ -498,12 +498,13 @@ static void perf_rs_invalidate_units(GLuint first, GLsizei count)
     uint32_t mask=(uint32_t)(((1ULL<<hi)-1)^((1ULL<<lo)-1));
     g_perf_rs_units_known&=~mask;
 }
-/* This scope never survives an application multi-draw call.  Only the private
-   units persist between its records; the application program is restored after
-   every draw so the existing glUniform1i DrawID update remains authoritative. */
+/* Private state persists only within one application multi-draw. Original
+   DrawID writes target the application program explicitly during that scope. */
 static int g_perf_rs_batch_on=1;
+static int g_perf_rs_batch_program_on=1;
 static unsigned long long g_perf_rs_batch_scopes, g_perf_rs_batch_draws;
 static perf_rs_program *g_perf_rs_batch;
+static int g_perf_rs_batch_program_bound, g_perf_rs_batch_validated;
 static uint32_t g_perf_rs_batch_known;
 static GLuint g_perf_rs_batch_textures[PERF_RS_SLOTS];
 static GLuint g_perf_rs_batch_samplers[PERF_RS_SLOTS];
@@ -1226,6 +1227,7 @@ static void perf_rs_indirect_batch_begin(GLsizei count)
     perf_rs_program *p=g_perf_rs_programs[g_current_program];
     if (!p || !p->program || !p->indirect_shadow) return;
     g_perf_rs_batch=p;
+    g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
     g_perf_rs_batch_scopes++;
     g_perf_rs_batch_known=0;
     g_perf_rs_changed_textures=g_perf_rs_changed_samplers=0;
@@ -1234,8 +1236,17 @@ static void perf_rs_indirect_batch_begin(GLsizei count)
 static void perf_rs_indirect_batch_end(void)
 {
     if (!g_perf_rs_batch) return;
+    if (g_perf_rs_batch_program_bound) g_perf_rs_gl.use(g_perf_rs_batch->original);
+    g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
     perf_rs_restore_units(g_perf_rs_batch);
     g_perf_rs_batch=NULL;
+}
+
+static int perf_rs_indirect_drawid(GLint location, GLint draw_id)
+{
+    if (!g_perf_rs_batch || !g_perf_rs_batch_program_bound) return 0;
+    g_perf_rs_gl.u1(g_perf_rs_batch->original,location,draw_id);
+    return 1;
 }
 
 static int perf_rs_begin_draw(GLint draw_id)
@@ -1254,15 +1265,20 @@ static int perf_rs_begin_draw(GLint draw_id)
         p=g_perf_rs_programs[g_current_program];
         if (!p || !p->program) return 0;
     }
-    GLint current=0, tf=0;
-    if (g_perf_rs_state_cache_on && g_current_program_valid) {
-        current=(GLint)g_current_program;
-        g_perf_rs_program_query_skips++;
-    } else {
-        g_perf_rs_gl.get(0x8B8D,&current);
+    int batch=g_perf_rs_batch==p;
+    if (!batch || !g_perf_rs_batch_validated) {
+        GLint current=0, tf=0;
+        if (g_perf_rs_state_cache_on && g_current_program_valid) {
+            current=(GLint)g_current_program;
+            g_perf_rs_program_query_skips++;
+        } else {
+            g_perf_rs_gl.get(0x8B8D,&current);
+        }
+        g_perf_rs_gl.get(0x8E24,&tf);
+        if ((GLuint)current!=p->original || tf) { g_perf_rs_rejects[0]++; goto fallback; }
+        /* No application state change can occur between these subdraws. */
+        if (batch && g_perf_rs_batch_program_on) g_perf_rs_batch_validated=1;
     }
-    g_perf_rs_gl.get(0x8E24,&tf);
-    if ((GLuint)current!=p->original || tf) { g_perf_rs_rejects[0]++; goto fallback; }
     if (p->indirect_shadow) {
         if (draw_id<0) g_perf_rs_gl.get_u1(p->original,p->drawid_original,&draw_id);
         if (draw_id<0 || draw_id>=512 || p->perdraw_stride!=112) {
@@ -1404,7 +1420,6 @@ static int perf_rs_begin_draw(GLint draw_id)
             p->sampler_units[i]=units[i];
         }
     }
-    int batch=g_perf_rs_batch==p;
     if (!batch) g_perf_rs_changed_textures=g_perf_rs_changed_samplers=0;
     if (!g_perf_rs_gl.bind_multi_tex) g_perf_rs_gl.get(0x84E0,&g_perf_rs_saved_active);
     for (uint32_t mask=temporary;mask;mask&=mask-1) {
@@ -1450,7 +1465,8 @@ static int perf_rs_begin_draw(GLint draw_id)
         }
     }
     if (!g_perf_rs_gl.bind_multi_tex) g_perf_rs_gl.active(g_perf_rs_saved_active);
-    g_perf_rs_gl.use(p->program);
+    if (!batch || !g_perf_rs_batch_program_bound) g_perf_rs_gl.use(p->program);
+    if (batch && g_perf_rs_batch_program_on) g_perf_rs_batch_program_bound=1;
     g_perf_rs_active=p; g_perf_rs_draws++;
     if (batch) g_perf_rs_batch_draws++;
     if (p->ui_textures) g_perf_rs_ui_draws++;
@@ -1458,7 +1474,11 @@ static int perf_rs_begin_draw(GLint draw_id)
 fallback:
     /* A fallback uses the original shader, including any ordinary samplers it
        may contain.  It must see the application's bindings, not a prior record. */
-    if (g_perf_rs_batch==p) perf_rs_restore_units(p);
+    if (g_perf_rs_batch==p) {
+        if (g_perf_rs_batch_program_bound) g_perf_rs_gl.use(p->original);
+        g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
+        perf_rs_restore_units(p);
+    }
     g_perf_rs_fallbacks++;
     if (p->ui_textures) g_perf_rs_ui_fallbacks++;
     return 0;
@@ -1480,7 +1500,7 @@ static void perf_rs_end(void)
 {
     perf_rs_program *p=g_perf_rs_active;
     if (!p) return;
-    g_perf_rs_gl.use(p->original);
+    if (!g_perf_rs_batch_program_bound) g_perf_rs_gl.use(p->original);
     if (g_perf_rs_batch!=p) perf_rs_restore_units(p);
     g_perf_rs_active=NULL;
 }

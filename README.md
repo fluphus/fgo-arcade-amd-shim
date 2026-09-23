@@ -1,16 +1,14 @@
-# FGO Arcade AMD Patch · 2026.09.22
+# FGO Arcade AMD Patch · 2026.09.23
 
 [中文](README.zh-CN.md) | [日本語](README.ja.md)
 
 **The patch has a built-in 60 FPS cap.**
 
-This version improves the 60 FPS limiter to prevent accumulated timing drift. Earlier rendering fixes are included.
+Screen tearing is removed by one opaque pixel at the bottom-right, without turning VSync on.
 
 ## Display Settings
 
-Disable additional frame-rate limits, such as an RTSS profile for `ago.exe`, to avoid stacking them with the built-in 60 FPS cap.
-
-If you notice screen tearing, try enabling **Radeon Enhanced Sync** in AMD Software: Adrenalin Edition. If regular VSync causes frame drops, try setting **Wait for Vertical Refresh** to **Always Off** while keeping Enhanced Sync enabled. Results may vary by GPU and driver.
+Disable additional frame-rate limits, such as an RTSS profile for `ago.exe`, so they do not stack with the built-in 60 FPS cap. Leave **Wait for Vertical Refresh** off.
 
 ## Install and Restore
 

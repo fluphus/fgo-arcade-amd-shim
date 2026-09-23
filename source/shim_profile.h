@@ -54,6 +54,7 @@ enum {
     SHIM_DEFAULT_model_vertex_stream_translation_v1 = 1,
     SHIM_DEFAULT_mp4_video_copy_cpu_fallback_v1 = 1,
     SHIM_DEFAULT_no_vao_pacing_v1 = 0,
+    SHIM_DEFAULT_present_compose_v1 = 1,
     SHIM_DEFAULT_p114_fbo98_writer_v1 = 0,
     SHIM_DEFAULT_p1156_fbo105_empty_tile_v1 = 0,
     SHIM_DEFAULT_p1156_fbo105_front_light_v1 = 0,

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include "shim_profile.h"
+#include "present_timeline.h"
 
 typedef PROC (WINAPI *wglGetProcAddress_t)(LPCSTR);
 typedef HGLRC (WINAPI *wglCreateContext_t)(HDC);
@@ -472,6 +473,7 @@ static void nv_address_probe_draw_boundary(void);
 static void glog(const char *fmt, ...);
 static void frame_boundary_bookkeeping(void);
 static PROC trace_resolve(const char *name);
+#include "submission_gpu_profile.h"
 static PROC context_gl_export(const char *name);
 static void api_census_flush(int force);
 static void api_census_lookup(const char *name, unsigned resolution, PROC p);
@@ -642,6 +644,7 @@ static void perf_timing_record(unsigned long long *calls,
 
 static void perf_ordinary_begin(unsigned long long *start)
 {
+    present_timeline_first_render();
     BATTLE_TRACE_DRAW("ordinary_enter",0,0,0,0,0);
     if (start) *start = perf_timing_start();
 }
@@ -1121,6 +1124,7 @@ static void perf_rs_upload_gpu_target(GLenum target, GLuint buffer);
 static void perf_rs_end(void);
 static void perf_rs_indirect_batch_begin(GLsizei count);
 static void perf_rs_indirect_batch_end(void);
+static int perf_rs_indirect_drawid(GLint location, GLint draw_id);
 static PROC perf_rs_wrapper(const char *name);
 static void perf_rs_context_change(HGLRC context);
 static void perf_rs_invalidate_units(GLuint first, GLsizei count);
@@ -2124,7 +2128,16 @@ static nv_range g_nv_va_keep[NV_MAX_ATTRIBS];
 static nv_range g_nv_ea;
 static GLuint g_nv_ea_buf;
 static GLintptr g_nv_ea_off;
+static GLuint g_nv_ea_vao;
 static int g_nv_ea_valid;
+static unsigned long long g_perf_nv_ea_bind_calls;
+static unsigned long long g_perf_nv_ea_bind_skips;
+
+static int nv_ea_binding_needs_update(GLuint buffer, GLintptr offset)
+{
+    return !g_nv_ea_valid || g_nv_ea_buf != buffer ||
+           g_nv_ea_off != offset || g_nv_ea_vao != g_current_vao;
+}
 #define VERTEX_ADDRESS_STATE_PROBE_CAP 160
 static unsigned long g_vertex_address_state_probe_lines;
 static unsigned long long g_vertex_address_state_probe_last_p700_hash;
@@ -2478,6 +2491,9 @@ static GLint g_scene_color_p1156_saved_dst_alpha;
 static unsigned long g_scene_color_p1156_blend_lines;
 static int g_no_vao_pacing_on;
 static int g_login_aware_pacing_on;
+static int g_present_compose_on;
+static HWND g_present_compose_occluder;
+static RECT g_present_compose_anchor;
 static int g_login_aware_home_seen;
 /* Translation-only baseline: submit every pointer-bearing program through its
    requested real handle and keep only semantic NV-to-core rewrites.  The
@@ -3759,6 +3775,8 @@ static void WINAPI wrap_glBindImageTexture(GLuint unit, GLuint tex, GLint level,
 
 static void WINAPI wrap_glDispatchCompute(GLuint gx, GLuint gy, GLuint gz)
 {
+    submission_gpu_mark(g_current_program, g_bound_draw_framebuffer, 1);
+    present_timeline_first_render();
     static glDispatchCompute_t real;
     if (!real) real = (glDispatchCompute_t)trace_resolve("glDispatchCompute");
 
@@ -4587,6 +4605,7 @@ static void WINAPI stub_glBufferAddressRangeNV(GLenum pname, GLuint index, GLuin
             g_nv_ea_valid = 0;
             g_nv_ea_buf = 0;
             g_nv_ea_off = 0;
+            g_nv_ea_vao = 0;
         }
     } else if (pname == GL_UNIFORM_BUFFER_ADDRESS_NV) {
         if (index < NV_MAX_UBO) {
@@ -6664,7 +6683,9 @@ void WINAPI wrap_glFinish(void)
 {
     static glFinish_t real;
     if (!real) real=(glFinish_t)trace_resolve("glFinish");
+    uint64_t timeline_start = present_timeline_sync_begin();
     if (real) real();
+    present_timeline_sync_end(PRESENT_TIME_FINISH, timeline_start, 0);
     PERF_MAPPED_READ_BOUNDARY();
 }
 
@@ -6672,7 +6693,9 @@ void WINAPI wrap_glFlush(void)
 {
     static glFlush_t real;
     if (!real) real=(glFlush_t)trace_resolve("glFlush");
+    uint64_t timeline_start = present_timeline_sync_begin();
     if (real) real();
+    present_timeline_sync_end(PRESENT_TIME_FLUSH, timeline_start, 0);
     PERF_MAPPED_READ_BOUNDARY();
 }
 
@@ -6682,7 +6705,9 @@ static GLenum WINAPI wrap_glClientWaitSync(GLsync sync, GLbitfield flags,
     typedef GLenum (WINAPI *wait_t)(GLsync, GLbitfield, GLuint64);
     static wait_t real;
     if (!real) real=(wait_t)trace_resolve("glClientWaitSync");
+    uint64_t timeline_start = present_timeline_sync_begin();
     GLenum result=real ? real(sync,flags,timeout) : 0x911D /* GL_WAIT_FAILED */;
+    present_timeline_sync_end(PRESENT_TIME_CLIENT_WAIT, timeline_start, result);
     PERF_MAPPED_READ_BOUNDARY();
     return result;
 }
@@ -6692,7 +6717,9 @@ static void WINAPI wrap_glWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeo
     typedef void (WINAPI *wait_t)(GLsync, GLbitfield, GLuint64);
     static wait_t real;
     if (!real) real=(wait_t)trace_resolve("glWaitSync");
+    uint64_t timeline_start = present_timeline_sync_begin();
     if (real) real(sync,flags,timeout);
+    present_timeline_sync_end(PRESENT_TIME_SERVER_WAIT, timeline_start, 0);
     PERF_MAPPED_READ_BOUNDARY();
 }
 
@@ -8395,6 +8422,7 @@ static void bindless_drawid_set(GLint location, GLint draw_id)
     typedef void (WINAPI *uniform_1i_t)(GLint, GLint);
     static uniform_1i_t uniform_1i;
     if (location < 0) return;
+    if (perf_rs_indirect_drawid(location, draw_id)) return;
     if (!uniform_1i)
         uniform_1i = (uniform_1i_t)trace_resolve("glUniform1i");
     if (uniform_1i) uniform_1i(location, draw_id);
@@ -9193,6 +9221,7 @@ static int bindless_draw_elements(GLenum mode, GLenum type, const void *indirect
         if (replay_index_buffer != index_buf) {
             bind_buffer(GL_ELEMENT_ARRAY_BUFFER, index_buf);
             replay_index_buffer = index_buf;
+            g_nv_ea_valid = 0;
         }
         g_bound_buffer[GL_ELEMENT_ARRAY_BUFFER] = index_buf;
         bindless_bind_vertex_payload(raw + 24 + 24, vertexBufferCount,
@@ -9281,6 +9310,7 @@ static int bindless_draw_elements(GLenum mode, GLenum type, const void *indirect
     if (owned) HeapFree(GetProcessHeap(), 0, owned);
     bind_buffer(GL_ELEMENT_ARRAY_BUFFER, saved_element_buffer);
     g_bound_buffer[GL_ELEMENT_ARRAY_BUFFER] = saved_element_buffer;
+    g_nv_ea_valid = 0;
     {
         unsigned long long bindless_restore_start =
             g_perf_timing_on ? perf_timing_qpc() : 0;
@@ -9816,7 +9846,10 @@ static __attribute__((noinline)) void WINAPI wrap_glBindVertexArray(GLuint array
     int changed = g_current_vao != array;
     if (!real) real = (glBindVertexArray_t)trace_resolve("glBindVertexArray");
     g_current_vao = array;
-    if (changed) g_bindless_state_replay_cache_valid = 0;
+    if (changed) {
+        g_bindless_state_replay_cache_valid = 0;
+        g_nv_ea_valid = 0;
+    }
     /* Postprocess DLLs restore VAO zero too; only the game's reset ends a frame. */
     if (array == 0 && frame_boundary_game_caller(__builtin_return_address(0)))
         frame_boundary_bookkeeping();
@@ -9829,6 +9862,10 @@ static void WINAPI wrap_glBindBuffer(GLenum target, GLuint buffer)
     if (!real_glBindBuffer) ensure_gl_bind_buffer();
     glog("BIND glBindBuffer target=0x%x buf=%u\n", target, buffer);
     trace_buf_bind(target, buffer);
+    /* The application can replace the VAO's element binding independently of
+       the NV address range.  Do not let the unified-address cache hide it. */
+    if (target == GL_ELEMENT_ARRAY_BUFFER)
+        g_nv_ea_valid = 0;
     if (real_glBindBuffer) real_glBindBuffer(target, buffer);
 }
 
@@ -13580,7 +13617,8 @@ static int particle_vertex_binding_ready(void)
    VAO state just before a draw.  The game only ever binds VAO 0. */
 static void apply_unified_attribs(void)
 {
-
+    submission_gpu_mark(g_current_program, g_bound_draw_framebuffer, 0);
+    present_timeline_first_render();
     unsigned long long perf_start =
         g_perf_timing_on ? perf_timing_qpc() : 0;
     if (g_no_vao_pacing_on && !g_login_aware_home_seen &&
@@ -13626,9 +13664,8 @@ static void apply_unified_attribs(void)
     }
 
     /* NV_vertex_buffer_unified_memory also replaces the GL_ELEMENT_ARRAY_BUFFER
-       binding.  The game sets GL_ELEMENT_ARRAY_ADDRESS_NV (buf 91 here) but the
-       shim never bound it, so every indexed draw (UI text!) read garbage
-       indices.  Bind the decoded buffer before indexed draws. */
+       binding.  Bind the decoded buffer before indexed draws; identical
+       bindings stay resident in the current VAO/context and are skipped. */
     if (g_nv_ea.addr != 0) {
         GLuint eb = 0, eo = 0;
         decode_fake_addr(g_nv_ea.addr, &eb, &eo);
@@ -13636,10 +13673,16 @@ static void apply_unified_attribs(void)
             static glBindBuffer_t bb;
             if (!bb) bb = (glBindBuffer_t)trace_resolve("glBindBuffer");
             if (bb) {
-                bb(GL_ELEMENT_ARRAY_BUFFER, eb);
-                g_nv_ea_buf = eb;
-                g_nv_ea_off = (GLintptr)eo;
-                g_nv_ea_valid = 1;
+                if (nv_ea_binding_needs_update(eb, (GLintptr)eo)) {
+                    bb(GL_ELEMENT_ARRAY_BUFFER, eb);
+                    g_nv_ea_buf = eb;
+                    g_nv_ea_off = (GLintptr)eo;
+                    g_nv_ea_vao = g_current_vao;
+                    g_nv_ea_valid = 1;
+                    g_perf_nv_ea_bind_calls++;
+                } else {
+                    g_perf_nv_ea_bind_skips++;
+                }
             }
         }
     }
@@ -31821,6 +31864,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
         g_no_vao_pacing_on = (SHIM_FEATURE(no_vao_pacing_v1));
         g_login_aware_pacing_on =
             (SHIM_FEATURE(login_aware_pacing_v1));
+        g_present_compose_on = (SHIM_FEATURE(present_compose_v1));
+#if !defined(FGO_DEVELOPMENT_MARKERS)
+        if (GetFileAttributesA("C:\\fgo\\_tools\\glshim\\present_compose_v1.off") != INVALID_FILE_ATTRIBUTES)
+            g_present_compose_on = 0;
+#endif
         g_gpu_fence_probe_on = 0;
         g_feedback_scope_probe_on = 0;
         g_feedback_targeted_fix_on = (SHIM_FEATURE(feedback_targeted_fix_v1));
@@ -34123,6 +34171,7 @@ BOOL WINAPI wglMakeCurrent_shim(HDC hdc, HGLRC hglrc)
         }
     }
     BOOL current = real_wglMakeCurrent ? real_wglMakeCurrent(hdc, hglrc) : FALSE;
+    if (current) submission_gpu_context_change(hglrc);
     static HGLRC cache_context;
     if (!current || cache_context != hglrc) {
         /* Ordinary UBO mirrors belong to one GL context.  Do not carry a
@@ -34132,6 +34181,10 @@ BOOL WINAPI wglMakeCurrent_shim(HDC hdc, HGLRC hglrc)
         bindless_sampler_handle_cache_invalidate();
         bindless_texture_probe_context_change(current ? hglrc : NULL);
         cache_context = current ? hglrc : NULL;
+        g_nv_ea_valid = 0;
+        g_nv_ea_buf = 0;
+        g_nv_ea_off = 0;
+        g_nv_ea_vao = 0;
     }
     if (current) perf_emitter_header_context_change(hglrc);
     if (current) perf_rs_context_change(hglrc);
@@ -34297,62 +34350,78 @@ static void pace_wait_until(LARGE_INTEGER *now, LONGLONG deadline, LONGLONG freq
     }
 }
 
+/* v5.1 measures every interval from the previous actual arrival. A late
+   frame therefore never shortens the next one. The frequency%60 remainder
+   only inserts a single QPC tick, so on-time frames average exactly 1/60 s. */
 typedef struct {
-    LONGLONG frequency, deadline, last;
+    LONGLONG origin;
+    LONGLONG frequency;
     unsigned remainder;
-    int started;
-} pace_schedule;
+    int armed;
+} pace_anchor;
 
-/* Keep sub-millisecond wake jitter out of subsequent frame deadlines. */
-static LONGLONG pace_schedule_deadline(pace_schedule *s, LONGLONG now,
-                                       LONGLONG frequency)
+static LONGLONG pace_anchor_interval(const pace_anchor *s, LONGLONG frequency)
 {
-    if (!s->started || s->frequency != frequency || now < s->last) {
+    LONGLONG interval = frequency / 60;
+    if (s->remainder + (unsigned)(frequency % 60) >= 60)
+        interval++;
+    return interval;
+}
+
+static int pace_anchor_broken(const pace_anchor *s, LONGLONG now, LONGLONG frequency)
+{
+    return !s->armed || s->frequency != frequency || frequency < 60 || now < s->origin;
+}
+
+/* Idempotent. A broken anchor or an already-late arrival waits nothing. */
+static LONGLONG pace_anchor_deadline(const pace_anchor *s, LONGLONG now, LONGLONG frequency)
+{
+    LONGLONG deadline;
+    if (pace_anchor_broken(s, now, frequency))
+        return now;
+    deadline = s->origin + pace_anchor_interval(s, frequency);
+    return deadline > now ? deadline : now;
+}
+
+/* Anchor the next interval at the actual release. Never retain an earlier
+   deadline to repay lateness. */
+static void pace_anchor_release(pace_anchor *s, LONGLONG now, LONGLONG frequency)
+{
+    if (frequency < 60 || (s->armed && (s->frequency != frequency || now < s->origin))) {
+        s->armed = frequency >= 60;
         s->frequency = frequency;
-        s->deadline = now;
+        s->origin = now;
         s->remainder = 0;
-        s->started = 1;
+        return;
     }
-    return s->deadline;
+    if (s->armed) {
+        s->remainder += (unsigned)(frequency % 60);
+        if (s->remainder >= 60)
+            s->remainder -= 60;
+    }
+    s->origin = now;
+    s->frequency = frequency;
+    s->armed = 1;
 }
 
-static void pace_schedule_release(pace_schedule *s, LONGLONG now)
-{
-    /* Never repay a long render/loading stall as a burst of fast frames.
-       At most 1 ms of lateness is recovered by the following frame. */
-    if (now - s->deadline > s->frequency / 1000) {
-        s->deadline = now;
-        s->remainder = 0;
-    }
-    s->last = now;
-    s->deadline += s->frequency / 60;
-    s->remainder += (unsigned)(s->frequency % 60);
-    if (s->remainder >= 60) {
-        s->deadline++;
-        s->remainder -= 60;
-    }
-}
-
-/* Pace once at the established game boundary. Time already spent rendering
-   or presenting counts toward the deadline, not an additional full wait. */
 static void pace_frame_60hz(void)
 {
     static LARGE_INTEGER freq;
-    static pace_schedule schedule;
+    static pace_anchor anchor;
     LARGE_INTEGER now;
+    LONGLONG deadline;
     if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&now);
-    if (freq.QuadPart >= 60) {
-        LONGLONG deadline = pace_schedule_deadline(&schedule, now.QuadPart,
-                                                  freq.QuadPart);
-        if (now.QuadPart < deadline)
-            pace_wait_until(&now, deadline, freq.QuadPart);
-        pace_schedule_release(&schedule, now.QuadPart);
-    }
+    if (freq.QuadPart < 60) return;
+    deadline = pace_anchor_deadline(&anchor, now.QuadPart, freq.QuadPart);
+    if (now.QuadPart < deadline)
+        pace_wait_until(&now, deadline, freq.QuadPart);
+    pace_anchor_release(&anchor, now.QuadPart, freq.QuadPart);
 }
 
 static void frame_boundary_bookkeeping(void)
 {
+    present_timeline_boundary(0);
     battle_observe_arm();
 
     /* Frame accounting and pacing are required even without capture.
@@ -34387,6 +34456,7 @@ static void frame_boundary_bookkeeping(void)
     bindless_emulation_frame();
     perf_timing_emit();
     material_probe_frame();
+    present_timeline_boundary(1);
     }
 
 /* ---------- gdi32!SwapBuffers IAT hook (the game's real presentation path) ---------- */
@@ -34873,8 +34943,67 @@ static int WINAPI hook_gdi32_SetDIBitsToDevice(HDC hdc, int x, int y, DWORD w, D
     return real_gdi32_setdib ? real_gdi32_setdib(hdc, x, y, w, h, sx, sy, start, lines, bits, bmi, usage) : 0;
 }
 
+
+static void present_compose_log(const char *fmt, ...)
+{
+    FILE *f = fopen("C:\\fgo\\_tools\\glshim\\present_compose_v1.log", "a");
+    if (!f) return;
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fputc('\n', f);
+    fclose(f);
+}
+
+/* A fullscreen interval-0 present is eligible for tearing DirectFlip. A 1x1
+   opaque window overlapping that window makes DWM compose it instead.
+   Measured on this 7900 XTX with a flip-model probe: Independent Flip /
+   AllowsTearing=1 became Composed Flip / AllowsTearing=0, while CPUWait stayed
+   below 0.3 ms. DwmFlush only locked the probe to 16.67 ms and left tearing
+   enabled, so it is not used here. The CPU frame limiter stays out of this path. */
+static void present_force_composition(HDC hdc)
+{
+    HWND game;
+    RECT wr;
+    int x, y;
+    if (!g_present_compose_on) return;
+    game = WindowFromDC(hdc);
+    if (!game) return;
+    if (!GetWindowRect(game, &wr)) return;
+    x = wr.right - 2;
+    y = wr.bottom - 2;
+    if (x < wr.left) x = wr.left;
+    if (y < wr.top) y = wr.top;
+    if (g_present_compose_occluder && IsWindow(g_present_compose_occluder) &&
+        g_present_compose_anchor.left == wr.left &&
+        g_present_compose_anchor.top == wr.top &&
+        g_present_compose_anchor.right == wr.right &&
+        g_present_compose_anchor.bottom == wr.bottom)
+        return;
+    if (g_present_compose_occluder && IsWindow(g_present_compose_occluder))
+        DestroyWindow(g_present_compose_occluder);
+    g_present_compose_occluder = CreateWindowExW(
+        WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        L"STATIC", L"", WS_POPUP | WS_VISIBLE,
+        x, y, 1, 1, game, NULL, GetModuleHandleW(NULL), NULL);
+    g_present_compose_anchor = wr;
+    if (!g_present_compose_occluder) {
+        present_compose_log("create failed err=%lu game=%p", GetLastError(), (void *)game);
+        return;
+    }
+    SetWindowPos(g_present_compose_occluder, HWND_TOPMOST, x, y, 1, 1,
+                 SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    present_compose_log("occluder=%p game=%p rect=%ld,%ld,%ld,%ld",
+                        (void *)g_present_compose_occluder, (void *)game,
+                        (long)wr.left, (long)wr.top, (long)wr.right, (long)wr.bottom);
+}
+
 static BOOL WINAPI hook_gdi32_SwapBuffers(HDC hdc)
 {
+    present_force_composition(hdc);
+    submission_gpu_swap_begin();
+    present_timeline_swap_begin(hdc, 0);
     battle_ui_v2_before_present(hdc);
     battle_observe_arm();
     g_present_gdi_calls++;
@@ -34933,6 +35062,8 @@ static BOOL WINAPI hook_gdi32_SwapBuffers(HDC hdc)
         }
     }
     battle_ui_v2_after_present(hdc);
+    present_timeline_swap_end(g_frame_count);
+    submission_gpu_swap_end(g_frame_count);
     return r;
 }
 
@@ -35132,6 +35263,9 @@ static void scene_color_origin_probe_present(void)
 
 BOOL WINAPI wglSwapBuffers_shim(HDC hdc)
 {
+    present_force_composition(hdc);
+    submission_gpu_swap_begin();
+    present_timeline_swap_begin(hdc, 1);
     battle_ui_v2_before_present(hdc);
     /* Root cause (2026-08-14): the shim loads two instances of the real
        opengl32.dll -- opengl32real.dll (all forwarded GL exports) and the
@@ -35184,6 +35318,8 @@ BOOL WINAPI wglSwapBuffers_shim(HDC hdc)
         }
     }
     battle_ui_v2_after_present(hdc);
+    present_timeline_swap_end(g_frame_count);
+    submission_gpu_swap_end(g_frame_count);
     return r;
 }
 

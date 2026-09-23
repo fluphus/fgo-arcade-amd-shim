@@ -35,10 +35,9 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'install.ps1') -Destination (Join-Path $package 'game-patch\install.ps1')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gui\gui-action.ps1') -Destination (Join-Path $package 'game-patch\gui-action.ps1')
     Copy-Item -LiteralPath (Join-Path $build 'FgoAmdPatch.exe') -Destination (Join-Path $package 'FgoAmdPatch.exe')
-    foreach ($language in @('zh-CN','en','ja')) {
-        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui\README.$language.md") -Destination (Join-Path $package "README.$language.md")
+    foreach ($name in @('README.md','README.zh-CN.md','README.ja.md')) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui\$name") -Destination (Join-Path $package $name)
     }
-    Copy-Item -LiteralPath (Join-Path $package 'README.en.md') -Destination (Join-Path $package 'README.md')
     foreach ($name in $sourceFiles) {
         $target = Join-Path $package ('source\' + $name)
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null

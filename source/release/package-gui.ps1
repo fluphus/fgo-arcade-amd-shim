@@ -38,6 +38,7 @@ try {
     foreach ($name in @('README.md','README.zh-CN.md','README.ja.md')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui\$name") -Destination (Join-Path $package $name)
     }
+    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $root) 'LICENSE') -Destination (Join-Path $package 'LICENSE')
     foreach ($name in $sourceFiles) {
         $target = Join-Path $package ('source\' + $name)
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
@@ -76,7 +77,9 @@ try {
     $previousErrorAction = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        & $cc.Source -O2 -shared (Join-Path $package 'source\shim.c') (Join-Path $package 'source\shim.def') -o $rebuilt -lgdi32 -luser32 *> (Join-Path $build 'packaged-source-build.log')
+        & $cc.Source -O2 -shared (Join-Path $package 'source\shim.c') `
+            (Join-Path $package 'source\present_dxgi_latency1.c') (Join-Path $package 'source\shim.def') `
+            -o $rebuilt -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32 *> (Join-Path $build 'packaged-source-build.log')
         $compileExit = $LASTEXITCODE
     } finally { $ErrorActionPreference = $previousErrorAction }
     if ($compileExit -ne 0) { throw 'Packaged renderer source failed to rebuild.' }

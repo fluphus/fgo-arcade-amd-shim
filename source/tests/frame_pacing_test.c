@@ -156,19 +156,41 @@ static void deadline_bound_checks(void)
     printf("PASS deadline bounds: %u comparisons, extra wait <= one QPC tick\n", comparisons);
 }
 
-static void measure(int legacy)
+
+static int compare_ms(const void *a, const void *b)
+{
+    double x = *(const double *)a, y = *(const double *)b;
+    return (x > y) - (x < y);
+}
+
+static void measure(int legacy, int workload)
 {
     enum { N = 240 };
     LARGE_INTEGER f, now, start, last;
-    int i;
-    double min_ms = 1e9, max_ms = 0, elapsed;
+    double samples[N];
+    int i, outside = 0;
+    double min_ms = 1e9, max_ms = 0, max_work_ms = 0, elapsed;
     QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&last);
     if (!legacy) pace_frame_60hz();
     QueryPerformanceCounter(&start);
+    last = start;
     for (i = 0; i < N; ++i) {
         LONGLONG before = last.QuadPart;
         double ms;
+        if (workload) {
+            const DWORD work_ms[] = {1, 4, 10, 2, 8, 3};
+            LARGE_INTEGER work_start, work_end;
+            LONGLONG work_until;
+            double actual_work;
+            QueryPerformanceCounter(&work_start);
+            work_until = work_start.QuadPart + work_ms[i % 6] * f.QuadPart / 1000;
+            do {
+                YieldProcessor();
+                QueryPerformanceCounter(&work_end);
+            } while (work_end.QuadPart < work_until);
+            actual_work = 1000.0 * (double)(work_end.QuadPart - work_start.QuadPart) / (double)f.QuadPart;
+            if (actual_work > max_work_ms) max_work_ms = actual_work;
+        }
         if (legacy) {
             QueryPerformanceCounter(&now);
             pace_wait_until(&now, last.QuadPart + f.QuadPart / 60, f.QuadPart);
@@ -178,14 +200,21 @@ static void measure(int legacy)
             QueryPerformanceCounter(&last);
         }
         ms = 1000.0 * (double)(last.QuadPart - before) / (double)f.QuadPart;
-        if (i && ms < min_ms) min_ms = ms;
-        if (i && ms > max_ms) max_ms = ms;
+        samples[i] = ms;
+        if (ms < min_ms) min_ms = ms;
+        if (ms > max_ms) max_ms = ms;
+        if (ms < 15.0 || ms > 18.0) outside++;
     }
     elapsed = (double)(last.QuadPart - start.QuadPart) / (double)f.QuadPart;
-    printf("%s frames=%d seconds=%.6f fps=%.5f min_ms=%.5f max_ms=%.5f drift_ms=%.5f\n",
-           legacy ? "legacy" : "fractional", N, elapsed, N / elapsed,
-           min_ms, max_ms, 1000.0 * (elapsed - N / 60.0));
+    qsort(samples, N, sizeof samples[0], compare_ms);
+    printf("%s work=%d frames=%d fps=%.5f min_ms=%.5f p50_ms=%.5f p95_ms=%.5f "
+           "p99_ms=%.5f max_ms=%.5f outside_15_18=%d drift_ms=%.5f max_work_ms=%.5f\n",
+           legacy ? "legacy" : "fixed60", workload, N, N / elapsed,
+           min_ms, samples[N / 2], samples[N * 95 / 100], samples[N * 99 / 100],
+           max_ms, outside, 1000.0 * (elapsed - N / 60.0), max_work_ms);
 }
+
+
 
 int main(int argc, char **argv)
 {
@@ -195,8 +224,9 @@ int main(int argc, char **argv)
     cliff_checks();
     deadline_bound_checks();
     if (argc > 1 && !strcmp(argv[1], "--timing")) {
-        measure(1);
-        measure(0);
+        measure(1, 0);
+        measure(0, 0);
+        measure(0, 1);
     }
     return 0;
 }

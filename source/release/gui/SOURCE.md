@@ -54,14 +54,16 @@ gameplay from loading and menus.
 
 ## Fixtures
 
-CPU-only pointer/header regressions use the included small shader fixtures:
+CPU-only pointer/header and 60 FPS pacing regressions use the included fixtures:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\run-fixtures.ps1
 ```
 
 With an AMD OpenGL 4.5 context, also exercise ordinary sampler uploads, handle
-lifetime, changed mapped bytes, rendering/state restoration and 2000 draws:
+lifetime, changed mapped bytes, retained sampler state and 2000 draws. This also
+checks both tile-light shader variants against their original outputs and verifies
+render-target restoration after scene-color copies:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\run-fixtures.ps1 -Driver
@@ -79,7 +81,7 @@ buffer writes, unmap/remap and coherent mappings on an AMD OpenGL context:
 ```powershell
 $out = '.\build\mapped-cache-driver'
 New-Item -ItemType Directory -Force $out | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\mapped_read_cache_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\mapped_read_cache_wrapper.c -o "$out\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tests\mapped_read_cache_driver_test.py "$out"
 ```
 
@@ -98,7 +100,7 @@ Run the captured shader on an AMD OpenGL context:
 ```powershell
 $out = '.\build\compute-pointer'
 New-Item -ItemType Directory -Force $out | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\compute_pointer_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\compute_pointer_wrapper.c -o "$out\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tests\compute_pointer_driver_test.py "$out\wrapper.dll" .\tests\fixtures\compute\london_scattering.comp "$out\result.json"
 ```
 
@@ -119,7 +121,7 @@ the corrected route reproduces all 374 requested vertices exactly.
 ```powershell
 $out = '.\build\trail-vertex'
 New-Item -ItemType Directory -Force $out | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\trail_vertex_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\trail_vertex_wrapper.c -o "$out\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tests\trail_vertex_driver_test.py "$out\wrapper.dll" .\tests\fixtures\trail "$out"
 ```
 
@@ -132,7 +134,7 @@ macros and inactive code.
 ```powershell
 $out = '.\build\texcoord-rollback'
 New-Item -ItemType Directory -Force $out | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\texcoord_link_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\texcoord_link_wrapper.c -o "$out\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tests\texcoord_link_driver_test.py --wrapper "$out\wrapper.dll" --output "$out\result.json"
 ```
 
@@ -151,7 +153,7 @@ Position, normal and tangent outputs must remain identical in every case.
 ```powershell
 $out = '.\build\castle-vertex'
 New-Item -ItemType Directory -Force $out | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\castle_vertex_wrapper.c -o "$out\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\castle_vertex_wrapper.c -o "$out\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tests\castle_vertex_driver_test.py "$out\wrapper.dll" .\tests\fixtures\castle "$out\result.json"
 ```
 
@@ -183,7 +185,7 @@ game. It requires a revision-1 cache from an earlier installation.
 $gameDirectory = Read-Host 'Game directory'
 $testDirectory = '.\build\cache-pacing'
 New-Item -ItemType Directory -Force $testDirectory | Out-Null
-x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\external_optimization_wrapper.c -o "$testDirectory\wrapper.dll" -lgdi32 -luser32
+x86_64-w64-mingw32-gcc.exe -O2 -shared .\tests\external_optimization_wrapper.c -o "$testDirectory\wrapper.dll" .\present_dxgi_latency1.c -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
 python .\tools\migrate-shader-cache.py --source "$gameDirectory\shader-cache-r1" --destination "$testDirectory\migrated"
 python .\tests\external_optimization_test.py --wrapper "$testDirectory\wrapper.dll" --old-cache "$gameDirectory\shader-cache-r1" --migrated-cache "$testDirectory\migrated" --output "$testDirectory\results.json"
 ```

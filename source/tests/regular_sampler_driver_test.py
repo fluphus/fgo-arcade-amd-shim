@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--output', type=Path, default=DEFAULT_OUT)
     parser.add_argument('--wrapper', type=Path)
     parser.add_argument('--before', type=Path, help='Compare previous integrated sampler preparation in the same context.')
+    parser.add_argument('--scope-regression', action='store_true')
     args = parser.parse_args()
     OUT = args.output.resolve()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -767,6 +768,11 @@ def main():
                 if target: bind_multi(0x84C0 + unit, target, name)
                 else: bind_sampler(unit, name)
             active_unit(0x84C0 + 37)
+        if args.scope_regression:
+            from sampler_scope_cases import check_scopes
+            report['ordinary_scopes']=check_scopes(wrapper,gl,programs[0],state,read_image,
+                block_buffers[material['block']],bytes(block_data[material['block']]),material['offset'],alternate_handle)
+            print(json.dumps(report['ordinary_scopes']),flush=True)
         if args.before:
             previous = C.WinDLL(str(args.before.resolve()))
             previous_api = lambda name, result, *params: SystemGL.api(previous, name, result, *params)

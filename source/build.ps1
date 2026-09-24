@@ -16,13 +16,14 @@ $outDir = Split-Path -Parent $outPath
 New-Item -ItemType Directory -Force $outDir | Out-Null
 
 $source = Join-Path $root "shim.c"
+$latency = Join-Path $root "present_dxgi_latency1.c"
 $definition = Join-Path $root "shim.def"
 
 $previousErrorAction = $ErrorActionPreference
 try {
     # Windows PowerShell 5.1 turns redirected native warnings into error records.
     $ErrorActionPreference = 'Continue'
-    & $cc.Source -O2 -shared -o $outPath $source $definition -lgdi32 -luser32
+    & $cc.Source -O2 -shared -o $outPath $source $latency $definition -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32
     $buildExitCode = $LASTEXITCODE
 } finally {
     $ErrorActionPreference = $previousErrorAction

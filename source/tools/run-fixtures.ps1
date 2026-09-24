@@ -13,7 +13,9 @@ function Compile([string]$Source, [string]$Name, [string[]]$Flags = @()) {
     $old = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        & $cc -O2 @Flags (Join-Path $root ('tests\' + $Source)) -o $output -lgdi32 -luser32 *> ($output + '.build.log')
+        & $cc -O2 @Flags (Join-Path $root ('tests\' + $Source)) `
+            (Join-Path $root 'present_dxgi_latency1.c') -o $output `
+            -lgdi32 -luser32 -ld3d11 -ldxgi -ldxguid -lole32 *> ($output + '.build.log')
         $code = $LASTEXITCODE
     } finally { $ErrorActionPreference = $old }
     if ($code -ne 0) { throw "Compile failed: $Source. See $output.build.log" }
@@ -22,11 +24,11 @@ function Compile([string]$Source, [string]$Name, [string[]]$Flags = @()) {
 Push-Location $root
 try {
     $results = @()
-    foreach ($name in @('pointer_content_cache_test', 'emitter_header_cache_test', 'battle_emitter_pointer_test')) {
+    foreach ($name in @('pointer_content_cache_test', 'emitter_header_cache_test', 'battle_emitter_pointer_test', 'frame_pacing_test')) {
         $exe = Compile ($name + '.c') ($name + '.exe')
         $output = Join-Path $build $name
         New-Item -ItemType Directory -Path $output -Force | Out-Null
-        if ($name -eq 'pointer_content_cache_test') { & $exe *> (Join-Path $output 'result.log') }
+        if ($name -in @('pointer_content_cache_test','frame_pacing_test')) { & $exe *> (Join-Path $output 'result.log') }
         else { & $exe $output (Join-Path $fixtures 'particle') *> (Join-Path $output 'result.log') }
         if ($LASTEXITCODE -ne 0) { throw "Fixture failed: $name. See $output\result.log" }
         $results += $name
@@ -41,10 +43,22 @@ try {
         & python tests\mapped_sampler_read_bench.py --wrapper $wrapper --output (Join-Path $build 'mapped-sampler.json') *> (Join-Path $build 'mapped-sampler.log')
         if ($LASTEXITCODE -ne 0) { throw 'Mapped sampler driver regression failed; see mapped-sampler.log.' }
         $runner = Compile 'driver_residency_benchmark.c' 'residency_benchmark.dll' @('-shared')
-        & python tests\regular_sampler_driver_test.py --wrapper $wrapper --runner $runner --fixture-root (Join-Path $fixtures 'model') --output (Join-Path $build 'regular-sampler') *> (Join-Path $build 'regular-sampler.log')
+        $scopeWrapper = Compile 'sampler_tile_wrapper.c' 'sampler_tile.dll' @('-shared')
+        & python tests\regular_sampler_driver_test.py --scope-regression --wrapper $scopeWrapper --runner $runner --fixture-root (Join-Path $fixtures 'model') --output (Join-Path $build 'regular-sampler') *> (Join-Path $build 'regular-sampler.log')
         if ($LASTEXITCODE -ne 0) { throw 'Regular sampler driver regression failed; see regular-sampler.log.' }
         $results += 'mapped_sampler_driver', 'regular_sampler_driver'
         Write-Output 'PASS mapped_sampler_driver, regular_sampler_driver'
+        foreach ($variant in @('', '--no-near')) {
+            $tileArgs = @('tests\tile_depth_driver_test.py','--wrapper',$scopeWrapper,'--output',(Join-Path $build 'tile-depth'))
+            if ($variant) { $tileArgs += $variant }
+            & python @tileArgs *> (Join-Path $build ('tile-depth' + $variant + '.log'))
+            if ($LASTEXITCODE -ne 0) { throw 'Tile-depth driver regression failed.' }
+        }
+        $split = Compile 'split_blit_wrapper.c' 'split_blit.dll' @('-shared')
+        & python tests\split_blit_driver_test.py $split --output (Join-Path $build 'split-blit.json') *> (Join-Path $build 'split-blit.log')
+        if ($LASTEXITCODE -ne 0) { throw 'Split-blit driver regression failed.' }
+        $results += 'tile_depth_driver','split_blit_driver'
+        Write-Output 'PASS tile_depth_driver, split_blit_driver'
     }
     if ($Benchmarks) {
         $wrapper = Compile 'mapped_memory_read_bench.c' 'mapped_memory.dll' @('-shared', '-msse4.1')

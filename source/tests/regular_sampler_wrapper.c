@@ -49,11 +49,15 @@ __declspec(dllexport) int TestRegularInstall(HMODULE module, wglGetProcAddress_t
    the production query-cache branch without bypassing its validity checks. */
 __declspec(dllexport) void TestRegularSeedState(GLuint program)
 {
+    perf_rs_close_pending();
     if (!perf_rs_api()) return;
     g_perf_rs_units_known=0; /* Setup in this fixture uses unwrapped real GL. */
     g_perf_rs_state_cache_on=1;
     g_current_program=program;
     g_current_program_valid=1;
+    GLint active=0;
+    g_perf_rs_gl.get(0x84E0,&active);
+    g_active_texture_unit=(GLenum)active;
     for (GLuint i=0; i<64; i++) {
         GLint buffer=0; GLint64 offset=0, length=0;
         g_perf_rs_gl.get_i(0x8A28,i,&buffer);
@@ -63,7 +67,7 @@ __declspec(dllexport) void TestRegularSeedState(GLuint program)
     }
 }
 __declspec(dllexport) void TestRegularDisableCache(void)
-{ g_perf_rs_state_cache_on=0; g_current_program_valid=0; }
+{ perf_rs_close_pending(); g_perf_rs_state_cache_on=0; g_current_program_valid=0; }
 
 __declspec(dllexport) PROC TestRegularBindingProc(const char *name)
 {
@@ -110,12 +114,13 @@ __declspec(dllexport) int TestRegularDraw(GLuint program, unsigned count)
     for (unsigned i=0;i<count;i++) {
         hits+=perf_rs_begin(); draw(4,0,3); perf_rs_end();
     }
+    perf_rs_close_pending();
     return hits;
 }
 __declspec(dllexport) int TestRegularTry(GLuint program)
 {
     g_current_program=program;
-    int hit=perf_rs_begin(); perf_rs_end(); return hit;
+    int hit=perf_rs_begin(); perf_rs_end(); perf_rs_close_pending(); return hit;
 }
 __declspec(dllexport) int TestRegularArrayDraw(GLuint program, GLenum mode, GLint first, GLsizei count)
 {
@@ -124,6 +129,7 @@ __declspec(dllexport) int TestRegularArrayDraw(GLuint program, GLenum mode, GLin
     int hit=perf_rs_begin();
     draw(mode,first,count);
     perf_rs_end();
+    perf_rs_close_pending();
     return hit;
 }
 __declspec(dllexport) int TestRegularIndirectDraw(GLuint program, GLint draw_id, int indexed)

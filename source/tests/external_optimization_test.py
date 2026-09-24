@@ -120,7 +120,10 @@ def main():
             intervals, summary = (C.c_double * frames)(), (C.c_double * 4)()
             pace(legacy, frames, work, intervals, summary)
             values = sorted(intervals)
-            assert values[0] >= 16.60, values[0]
+            # Lattice deadlines do not absorb wake jitter, so one interval can sit
+            # a few tenths under 16.67 ms. 16.20 still rejects a dropped refresh.
+            assert values[0] >= 16.20, values[0]
+            assert statistics.median(values) >= 16.60
             if work > 16.7:
                 assert values[0] >= work - 0.1  # no catch-up frames after late work
             timings.append(dict(legacy=bool(legacy), work_ms=work, frames=frames,

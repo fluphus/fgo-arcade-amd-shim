@@ -493,6 +493,7 @@ static void perf_rs_invalidate_units(GLuint first, GLsizei count)
     if (count<=0 || first>=64+PERF_RS_SLOTS) return;
     uint64_t end=(uint64_t)first+(unsigned)count;
     if (end<=64) return;
+    perf_rs_close_pending();
     unsigned lo=first>64 ? first-64 : 0;
     unsigned hi=end<64+PERF_RS_SLOTS ? (unsigned)end-64 : PERF_RS_SLOTS;
     uint32_t mask=(uint32_t)(((1ULL<<hi)-1)^((1ULL<<lo)-1));
@@ -508,6 +509,13 @@ static int g_perf_rs_batch_program_bound, g_perf_rs_batch_validated;
 static uint32_t g_perf_rs_batch_known;
 static GLuint g_perf_rs_batch_textures[PERF_RS_SLOTS];
 static GLuint g_perf_rs_batch_samplers[PERF_RS_SLOTS];
+/* Ordinary scopes can span application draws. Observing/modifying private
+   GL state closes the scope; buffer contents and handles are read per draw. */
+static int g_perf_rs_lazy_on=1, g_perf_rs_lazy_batch;
+static DWORD g_perf_rs_lazy_thread;
+static unsigned long long g_perf_rs_lazy_scopes __attribute__((used));
+static unsigned long long g_perf_rs_lazy_hits __attribute__((used));
+static unsigned long long g_perf_rs_lazy_restores __attribute__((used));
 static bindless_handle_rec *g_perf_rs_handle_index[2048];
 static struct {
     GLuint texture;
@@ -590,6 +598,8 @@ missing:
 
 static void perf_rs_forget(GLuint program)
 {
+    perf_tile_forget(program);
+    perf_rs_close_pending();
     if (program >= 65536) return;
     perf_rs_program *p = g_perf_rs_programs[program];
     if (!p) return;
@@ -1016,6 +1026,7 @@ static void perf_rs_link(GLuint program)
 
 static void perf_rs_uniform4(GLuint program, GLint location, GLsizei count, const float *values)
 {
+    perf_tile_uniform4(program,location,count,values);
     if (program>=65536 || location<0 || count<=0 || !values) return;
     perf_rs_program *p=g_perf_rs_programs[program];
     if (!p || location>=PERF_RS_VALUES || p->sizes[location]<=0) return;
@@ -1031,6 +1042,8 @@ static void perf_rs_uniform4(GLuint program, GLint location, GLsizei count, cons
 
 static void perf_rs_uniform_sampler(GLuint program, GLint location, GLuint64 value, int handle)
 {
+    if (!handle && value>=64) perf_rs_close_pending();
+    perf_tile_sampler(program,location,value,handle);
     if (program>=65536 || location<0) return;
     perf_rs_program *p=g_perf_rs_programs[program];
     if (!p) return;
@@ -1221,6 +1234,7 @@ static void perf_rs_restore_units(perf_rs_program *p)
 
 static void perf_rs_indirect_batch_begin(GLsizei count)
 {
+    perf_rs_close_pending();
     if (!g_perf_rs_batch_on || !g_perf_regular_samplers_on || count<2 ||
         g_perf_rs_active || g_perf_rs_batch || g_current_program>=65536 ||
         !g_perf_rs_gl.bind_multi_tex) return;
@@ -1251,6 +1265,8 @@ static int perf_rs_indirect_drawid(GLint location, GLint draw_id)
 
 static int perf_rs_begin_draw(GLint draw_id)
 {
+    if (g_perf_rs_lazy_batch && (draw_id>=0 || !g_perf_rs_batch ||
+        g_current_program!=g_perf_rs_batch->original)) perf_rs_close_pending();
     if (!g_perf_regular_samplers_on || g_current_program>=65536) return 0;
     perf_rs_program *p=g_perf_rs_programs[g_current_program];
     if (!p || g_perf_rs_active) return 0;
@@ -1264,6 +1280,20 @@ static int perf_rs_begin_draw(GLint draw_id)
         perf_rs_build(g_current_program);
         p=g_perf_rs_programs[g_current_program];
         if (!p || !p->program) return 0;
+    }
+    if (!g_perf_rs_batch && draw_id<0 && !p->indirect_shadow &&
+        g_perf_rs_lazy_on && g_perf_rs_state_cache_on && g_current_program_valid &&
+        g_perf_rs_batch_program_on && g_perf_rs_gl.bind_multi_tex &&
+        g_active_texture_unit<0x84C0+64) {
+        g_perf_rs_batch=p;
+        g_perf_rs_lazy_batch=1;
+        g_perf_rs_lazy_thread=GetCurrentThreadId();
+        g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
+        g_perf_rs_batch_known=0;
+        g_perf_rs_changed_textures=g_perf_rs_changed_samplers=0;
+        g_perf_rs_lazy_scopes++;
+    } else if (g_perf_rs_lazy_batch && g_perf_rs_batch==p) {
+        g_perf_rs_lazy_hits++;
     }
     int batch=g_perf_rs_batch==p;
     if (!batch || !g_perf_rs_batch_validated) {
@@ -1393,8 +1423,18 @@ static int perf_rs_begin_draw(GLint draw_id)
         } else {
             GLint texture=0,sampler=0;
             if (s->unit<0 || s->unit>=p->texture_limit) { g_perf_rs_rejects[6]++; goto fallback; }
-            g_perf_rs_gl.get_i(s->binding,s->unit,&texture);
-            g_perf_rs_gl.get_i(0x8919,s->unit,&sampler);
+            unsigned source_unit=(unsigned)s->unit-64u;
+            /* A default sampler may itself use a temporarily occupied unit.
+               Read its application binding, not the previous private draw. */
+            if (batch && source_unit<PERF_RS_SLOTS &&
+                (g_perf_rs_changed_textures&(1u<<source_unit)) &&
+                p->samplers[source_unit].binding==s->binding)
+                texture=(GLint)g_perf_rs_saved_textures[source_unit];
+            else g_perf_rs_gl.get_i(s->binding,s->unit,&texture);
+            if (batch && source_unit<PERF_RS_SLOTS &&
+                (g_perf_rs_changed_samplers&(1u<<source_unit)))
+                sampler=(GLint)g_perf_rs_saved_samplers[source_unit];
+            else g_perf_rs_gl.get_i(0x8919,s->unit,&sampler);
             textures[i]=(GLuint)texture; samplers[i]=(GLuint)sampler;
         }
         units[i]=64+i;
@@ -1478,6 +1518,10 @@ fallback:
         if (g_perf_rs_batch_program_bound) g_perf_rs_gl.use(p->original);
         g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
         perf_rs_restore_units(p);
+        if (g_perf_rs_lazy_batch) {
+            g_perf_rs_lazy_batch=0;
+            g_perf_rs_batch=NULL;
+        }
     }
     g_perf_rs_fallbacks++;
     if (p->ui_textures) g_perf_rs_ui_fallbacks++;
@@ -1503,6 +1547,36 @@ static void perf_rs_end(void)
     if (!g_perf_rs_batch_program_bound) g_perf_rs_gl.use(p->original);
     if (g_perf_rs_batch!=p) perf_rs_restore_units(p);
     g_perf_rs_active=NULL;
+}
+
+static void perf_rs_close_pending(void)
+{
+    if (!g_perf_rs_lazy_batch || g_perf_rs_lazy_thread!=GetCurrentThreadId()) return;
+    g_perf_rs_lazy_batch=0;
+    if (g_perf_rs_batch) {
+        if (g_perf_rs_batch_program_bound) g_perf_rs_gl.use(g_perf_rs_batch->original);
+        perf_rs_restore_units(g_perf_rs_batch);
+    }
+    g_perf_rs_batch=NULL;
+    g_perf_rs_active=NULL;
+    g_perf_rs_batch_program_bound=g_perf_rs_batch_validated=0;
+    g_perf_rs_lazy_restores++;
+}
+
+static void perf_rs_prepare_pending(void)
+{
+    if (g_perf_rs_lazy_batch && (!g_perf_rs_batch ||
+        g_current_program!=g_perf_rs_batch->original)) perf_rs_close_pending();
+}
+
+static int perf_rs_lazy_uniform4(GLint location, GLsizei count, const float *value)
+{
+    if (!g_perf_rs_lazy_batch || !g_perf_rs_batch ||
+        g_perf_rs_batch->original!=g_current_program) return 0;
+    /* Preserve the application's current-program uniform semantics without
+       temporarily replacing the private program. Its mirror is dirtied above. */
+    g_perf_rs_gl.u4(g_current_program,location,count,value);
+    return 1;
 }
 
 static void perf_rs_context_change(HGLRC context)
@@ -1551,11 +1625,13 @@ static void WINAPI perf_rs_uniform1i(GLint location, GLint value)
     typedef void (WINAPI *fn_t)(GLint,GLint);
     static fn_t real;
     if (!real) real=(fn_t)trace_resolve("glUniform1i");
-    if (real) real(location,value);
+    if (g_perf_rs_lazy_batch) g_perf_rs_gl.u1(g_current_program,location,value);
+    else if (real) real(location,value);
     perf_rs_uniform_sampler(g_current_program,location,(GLuint64)value,0);
 }
 static void WINAPI perf_rs_uniform1iv(GLint location, GLsizei count, const GLint *value)
 {
+    perf_rs_close_pending();
     typedef void (WINAPI *fn_t)(GLint,GLsizei,const GLint *);
     static fn_t real;
     if (!real) real=(fn_t)trace_resolve("glUniform1iv");
@@ -1599,6 +1675,7 @@ static void WINAPI perf_rs_block_binding(GLuint program, GLuint index, GLuint bi
 }
 static void WINAPI perf_rs_storage_binding(GLuint program, GLuint index, GLuint binding)
 {
+    perf_tile_storage_binding(program,index,binding);
     typedef void (WINAPI *fn_t)(GLuint,GLuint,GLuint);
     static fn_t real;
     if (!real) real=(fn_t)trace_resolve("glShaderStorageBlockBinding");
@@ -1626,6 +1703,7 @@ static void perf_rs_release_handle_slot(unsigned i)
 
 void WINAPI perf_rs_delete_textures(GLsizei count, const GLuint *textures)
 {
+    perf_rs_close_pending();
     if (count>0) g_perf_rs_units_known=0;
     typedef void (WINAPI *fn_t)(GLsizei,const GLuint *);
     static fn_t real;
@@ -1640,6 +1718,7 @@ void WINAPI perf_rs_delete_textures(GLsizei count, const GLuint *textures)
 }
 static void WINAPI perf_rs_delete_samplers(GLsizei count, const GLuint *samplers)
 {
+    perf_rs_close_pending();
     if (count>0) g_perf_rs_units_known=0;
     typedef void (WINAPI *fn_t)(GLsizei,const GLuint *);
     static fn_t real;
@@ -1734,6 +1813,7 @@ static void WINAPI perf_rs_bind_samplers(GLuint first, GLsizei count, const GLui
 
 void WINAPI perf_rs_pop_attrib(void)
 {
+    perf_rs_close_pending();
     static void (WINAPI *real)(void);
     static void (WINAPI *get)(GLenum,GLint *);
     if (!real) real=(__typeof__(real))perf_rs_proc("glPopAttrib");

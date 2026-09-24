@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "shim_profile.h"
 #include "present_timeline.h"
+#include "present_dxgi_latency1.h"
 
 typedef PROC (WINAPI *wglGetProcAddress_t)(LPCSTR);
 typedef HGLRC (WINAPI *wglCreateContext_t)(HDC);
@@ -472,6 +473,17 @@ static void nv_address_probe_draw_boundary(void);
 
 static void glog(const char *fmt, ...);
 static void frame_boundary_bookkeeping(void);
+static void perf_rs_close_pending(void);
+static void perf_rs_prepare_pending(void);
+static int perf_rs_lazy_uniform4(GLint location, GLsizei count, const float *value);
+static PROC perf_rs_scope_wrapper(const char *name);
+static void perf_tile_forget(GLuint program);
+static void perf_tile_uniform4(GLuint program, GLint location, GLsizei count, const float *values);
+static void perf_tile_sampler(GLuint program, GLint location, GLuint64 unit, int handle);
+static void perf_tile_storage_binding(GLuint program, GLuint index, GLuint binding);
+static int perf_tile_begin(GLenum mode, GLint first, GLsizei count, GLsizei instances);
+static void perf_tile_end(void);
+
 static PROC trace_resolve(const char *name);
 #include "submission_gpu_profile.h"
 static PROC context_gl_export(const char *name);
@@ -642,11 +654,23 @@ static void perf_timing_record(unsigned long long *calls,
     }
 }
 
-static void perf_ordinary_begin(unsigned long long *start)
+static void perf_ordinary_begin_inner(unsigned long long *start)
 {
     present_timeline_first_render();
     BATTLE_TRACE_DRAW("ordinary_enter",0,0,0,0,0);
     if (start) *start = perf_timing_start();
+}
+
+static void perf_ordinary_begin(unsigned long long *start)
+{
+    perf_rs_close_pending();
+    perf_ordinary_begin_inner(start);
+}
+
+static void perf_ordinary_sampler_begin(unsigned long long *start)
+{
+    perf_rs_prepare_pending();
+    perf_ordinary_begin_inner(start);
 }
 
 static void perf_ordinary_end(unsigned long long start)
@@ -1717,6 +1741,7 @@ DEFINE_BINDLESS_RESIDENT_WRAPPER(glMakeTextureHandleNonResidentARB, "glMakeTextu
 #define DEFINE_BINDLESS_UNIFORM_WRAPPER(name, fallback) \
 static void WINAPI wrap_##name(GLint location, GLuint64 handle) \
 { \
+    perf_rs_close_pending(); \
     api_census_symbol_call(#name, API_GROUP_NV_BINDLESS); \
     static glUniformHandleui64_t real; \
     if (!real) real = (glUniformHandleui64_t)bindless_texture_probe_real(#name, fallback); \
@@ -1732,6 +1757,7 @@ DEFINE_BINDLESS_UNIFORM_WRAPPER(glUniformHandleui64ARB, "glUniformHandleui64NV")
 static void WINAPI wrap_glUniformHandleui64vNV(GLint location, GLsizei count,
                                                const GLuint64 *values)
 {
+    perf_rs_close_pending();
     api_census_symbol_call("glUniformHandleui64vNV", API_GROUP_NV_BINDLESS);
     static glUniformHandleui64v_t real;
     if (!real) real = (glUniformHandleui64v_t)bindless_texture_probe_real(
@@ -1746,6 +1772,7 @@ static void WINAPI wrap_glUniformHandleui64vNV(GLint location, GLsizei count,
 static void WINAPI wrap_glUniformHandleui64vARB(GLint location, GLsizei count,
                                                 const GLuint64 *values)
 {
+    perf_rs_close_pending();
     api_census_symbol_call("glUniformHandleui64vARB", API_GROUP_NV_BINDLESS);
     static glUniformHandleui64v_t real;
     if (!real) real = (glUniformHandleui64v_t)bindless_texture_probe_real(
@@ -3775,6 +3802,7 @@ static void WINAPI wrap_glBindImageTexture(GLuint unit, GLuint tex, GLint level,
 
 static void WINAPI wrap_glDispatchCompute(GLuint gx, GLuint gy, GLuint gz)
 {
+    perf_rs_close_pending();
     submission_gpu_mark(g_current_program, g_bound_draw_framebuffer, 1);
     present_timeline_first_render();
     static glDispatchCompute_t real;
@@ -4710,6 +4738,7 @@ static void WINAPI stub_glGetBufferParameterui64vNV(GLenum target, GLenum pname,
 
 static void WINAPI stub_glMultiDrawArraysIndirectBindlessNV(GLenum mode, const GLvoid *indirect, GLsizei drawCount, GLsizei stride, GLint vertexBufferCount)
 {
+    perf_rs_close_pending();
     BATTLE_TRACE_DRAW("nv_arrays_enter",mode,drawCount,stride,vertexBufferCount,0);
 
     api_census_symbol_call("glMultiDrawArraysIndirectBindlessNV", API_GROUP_NV_BINDLESS);
@@ -4742,6 +4771,7 @@ static void WINAPI stub_glMultiDrawArraysIndirectBindlessNV(GLenum mode, const G
 
 static void WINAPI stub_glMultiDrawElementsIndirectBindlessNV(GLenum mode, GLenum type, const GLvoid *indirect, GLsizei drawCount, GLsizei stride, GLint vertexBufferCount)
 {
+    perf_rs_close_pending();
     BATTLE_TRACE_DRAW("nv_elements_enter",mode,drawCount,stride,type,vertexBufferCount);
 
     api_census_symbol_call("glMultiDrawElementsIndirectBindlessNV", API_GROUP_NV_BINDLESS);
@@ -6331,7 +6361,7 @@ static void WINAPI wrap_glUniform4fv(GLint location, GLsizei count, const float 
              count > 1 ? value[6] : 0, count > 1 ? value[7] : 0);
         g_uniform_logged++;
     }
-    if (real) real(location, count, value);
+    if (!perf_rs_lazy_uniform4(location,count,value) && real) real(location,count,value);
 }
 
 static void WINAPI wrap_glUniform4f(GLint location, float x, float y, float z, float w)
@@ -6357,11 +6387,13 @@ static void WINAPI wrap_glUniform4f(GLint location, float x, float y, float z, f
         glog("UNI4f prog=15 loc=%d val=(%.4f,%.4f,%.4f,%.4f)\n", location, x, y, z, w);
         g_uniform_logged++;
     }
-    if (real) real(location, x, y, z, w);
+    { const float value[4]={x,y,z,w};
+      if (!perf_rs_lazy_uniform4(location,1,value) && real) real(location,x,y,z,w); }
 }
 
 static void WINAPI wrap_glActiveTexture(GLenum unit)
 {
+    if (unit>=0x84C0+64) perf_rs_close_pending();
     static glActiveTexture_t real;
     if (!real) real = (glActiveTexture_t)trace_resolve("glActiveTexture");
     g_active_texture_unit = unit;
@@ -9592,6 +9624,7 @@ static void tile_buffer_probe_draw(void)
 
 static void WINAPI wrap_glUseProgram(GLuint program)
 {
+    perf_rs_close_pending();
     unsigned long long perf_program_start = perf_timing_start();
     static glUseProgram_t real;
     api_census_group_call(API_GROUP_SHADER_PROGRAM);
@@ -16060,7 +16093,9 @@ void WINAPI wrap_glDrawArrays(GLenum mode, GLint first, GLsizei count)
     if (real) {
 
         perf_submit_start = perf_timing_start();
+        perf_tile_begin(mode,first,count,1);
         BATTLE_OBSERVE_CALL("da",mode,count,1,first,0,real(mode,first,count));
+        perf_tile_end();
         perf_ordinary_submit_end(perf_submit_start);
 
     }
@@ -16107,7 +16142,9 @@ static void WINAPI wrap_glDrawArraysInstanced(GLenum mode, GLint first, GLsizei 
     if (real) {
 
         perf_submit_start = perf_timing_start();
+        perf_tile_begin(mode,first,count,primcount);
         BATTLE_OBSERVE_CALL("da_inst",mode,count,primcount,first,0,real(mode,first,count,primcount));
+        perf_tile_end();
         perf_ordinary_submit_end(perf_submit_start);
 
     }
@@ -16146,7 +16183,7 @@ void WINAPI wrap_glDrawElements(GLenum mode, GLsizei count, GLenum type, const v
 {
     unsigned long long perf_wrapper_start = 0;
     unsigned long long perf_submit_start = 0;
-    perf_ordinary_begin(&perf_wrapper_start);
+    perf_ordinary_sampler_begin(&perf_wrapper_start);
     static glDrawElements_t real;
     if (!real) real = (glDrawElements_t)trace_resolve("glDrawElements");
     apply_unified_attribs();
@@ -16175,7 +16212,7 @@ static void WINAPI wrap_glDrawElementsInstanced(GLenum mode, GLsizei count, GLen
 {
     unsigned long long perf_wrapper_start = 0;
     unsigned long long perf_submit_start = 0;
-    perf_ordinary_begin(&perf_wrapper_start);
+    perf_ordinary_sampler_begin(&perf_wrapper_start);
     static glDrawElementsInstanced_t real;
     if (!real) real = (glDrawElementsInstanced_t)trace_resolve("glDrawElementsInstanced");
     apply_unified_attribs();
@@ -16204,7 +16241,7 @@ static void WINAPI wrap_glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei c
     unsigned long long perf_wrapper_start = 0;
     unsigned long long perf_submit_start = 0;
     unsigned long long perf_interleave_start[4] = {0, 0, 0, 0};
-    perf_ordinary_begin(&perf_wrapper_start);
+    perf_ordinary_sampler_begin(&perf_wrapper_start);
     static glDrawElementsInstancedBaseVertex_t real;
     if (!real) real = (glDrawElementsInstancedBaseVertex_t)trace_resolve("glDrawElementsInstancedBaseVertex");
     apply_unified_attribs();
@@ -16793,7 +16830,7 @@ void WINAPI wrap_glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum typ
     unsigned long long perf_wrapper_start = 0;
     unsigned long long perf_submit_start = 0;
     unsigned long long perf_interleave_start[4] = {0, 0, 0, 0};
-    perf_ordinary_begin(&perf_wrapper_start);
+    perf_ordinary_sampler_begin(&perf_wrapper_start);
     static glDrawElementsBaseVertex_t real;
     if (!real) real = (glDrawElementsBaseVertex_t)trace_resolve("glDrawElementsBaseVertex");
     g_p1156_last_draw_mode = mode;
@@ -16928,7 +16965,7 @@ static void WINAPI wrap_glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei
     unsigned long long perf_wrapper_start = 0;
     unsigned long long perf_submit_start = 0;
     unsigned long long perf_interleave_start[4] = {0, 0, 0, 0};
-    perf_ordinary_begin(&perf_wrapper_start);
+    perf_ordinary_sampler_begin(&perf_wrapper_start);
     static glMultiDrawElementsBaseVertex_t real;
     if (!real) real = (glMultiDrawElementsBaseVertex_t)trace_resolve("glMultiDrawElementsBaseVertex");
     apply_unified_attribs();
@@ -17216,7 +17253,9 @@ static void WINAPI wrap_glMultiDrawArrays(GLenum mode, const GLint *first, const
         scene_color_flow_probe_draw(count[0]);
     if (real) {
         perf_submit_start = perf_timing_start();
+        if (drawcount==1 && first && count) perf_tile_begin(mode,first[0],count[0],1);
         BATTLE_OBSERVE_CALL("mda",mode,drawcount,0,0,0,real(mode,first,count,drawcount));
+        perf_tile_end();
         perf_ordinary_submit_end(perf_submit_start);
     }
     skinning_producer_probe_v4_end(&v4_scope);
@@ -17743,38 +17782,28 @@ static void p700_fbo105_sc_blit_apply(glBlitFramebuffer_t real,
         real(sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, 0x4000u, filter);
         if (get_err) err1 = get_err();
         {
-            typedef void (WINAPI *get_int_t)(GLenum, GLint *);
-            typedef void (WINAPI *draw_buffer_t)(GLenum);
             typedef void (WINAPI *depth_mask_t)(GLboolean);
             typedef void (WINAPI *get_bool_t)(GLenum, GLboolean *);
             typedef void (WINAPI *copy_image_t)(GLuint, GLenum, GLint, GLint, GLint, GLint,
                                                 GLuint, GLenum, GLint, GLint, GLint, GLint,
                                                 GLsizei, GLsizei, GLsizei);
-            static get_int_t get_int;
-            static draw_buffer_t draw_buffer;
             static depth_mask_t depth_mask;
             static get_bool_t get_bool;
             static copy_image_t copy_image;
-            GLint saved_draw = 0x8CE0;
             GLboolean saved_dmask = 1;
             GLuint src_d;
             GLuint dst_d;
-            if (!get_int)
-                get_int = (get_int_t)trace_resolve("glGetIntegerv");
-            if (!draw_buffer)
-                draw_buffer = (draw_buffer_t)trace_resolve("glDrawBuffer");
             if (!depth_mask)
                 depth_mask = (depth_mask_t)trace_resolve("glDepthMask");
             if (!get_bool)
                 get_bool = (get_bool_t)trace_resolve("glGetBooleanv");
             if (!copy_image)
                 copy_image = (copy_image_t)trace_resolve("glCopyImageSubData");
-            if (get_int)
-                get_int(0x0C01, &saved_draw);
             if (get_bool)
                 get_bool(0x0B72 /* GL_DEPTH_WRITEMASK */, &saved_dmask);
-            if (draw_buffer)
-                draw_buffer(0);
+            /* Depth-only blits/copies do not write color; shader conversion
+               uses its own depth-only FBO. Leave the caller's color routing
+               untouched: glDrawBuffer would reset every higher MRT slot. */
             if (depth_mask)
                 depth_mask(1);
             if (get_err) {
@@ -17818,8 +17847,6 @@ static void p700_fbo105_sc_blit_apply(glBlitFramebuffer_t real,
             }
             if (depth_mask)
                 depth_mask(saved_dmask);
-            if (draw_buffer)
-                draw_buffer((GLenum)saved_draw);
         }
     } else {
         if (get_err) {
@@ -18291,6 +18318,7 @@ static PROC nv_dispatch_resolve(const char *name, unsigned *resolution)
 
 static PROC find_hook(const char *name)
 {
+    { PROC scope=perf_rs_scope_wrapper(name); if (scope) return scope; }
     if (strcmp(name, "glUseProgram") == 0) return (PROC)wrap_glUseProgram;
     if (strcmp(name, "glBindVertexArray") == 0) return (PROC)wrap_glBindVertexArray;
     if (strcmp(name, "glBindBuffer") == 0) return (PROC)wrap_glBindBuffer;
@@ -22064,9 +22092,12 @@ static void p700_fbo105_nt_interleave_end(void)
 /* Homepage tex99 pre-pair writer 8x8 observation. */
 
 #include "perf_regular_samplers.h"
+#include "perf_sampler_scopes.h"
+#include "perf_tile_depth.h"
 
 static void WINAPI wrap_glLinkProgram(GLuint program)
 {
+    perf_rs_close_pending();
     if (!real_glLinkProgram) real_glLinkProgram = (glLinkProgram_t)trace_resolve("glLinkProgram");
     if (program < 65536) {
         perf_pointer_program_class_cache_invalidate(program);
@@ -22191,6 +22222,7 @@ static void WINAPI wrap_glLinkProgram(GLuint program)
     if (real_glLinkProgram) real_glLinkProgram(program);
     battle_progress_event("link_after",0,program,0,0,0);
     perf_rs_link(program);
+    perf_tile_link(program);
 
     per_material_tail_range_reflect(program);
     pointer_program_inventory(program);
@@ -31869,6 +31901,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
         if (GetFileAttributesA("C:\\fgo\\_tools\\glshim\\present_compose_v1.off") != INVALID_FILE_ATTRIBUTES)
             g_present_compose_on = 0;
 #endif
+        if (present_dxgi_latency1_enabled())
+            g_present_compose_on = 0;
         g_gpu_fence_probe_on = 0;
         g_feedback_scope_probe_on = 0;
         g_feedback_targeted_fix_on = (SHIM_FEATURE(feedback_targeted_fix_v1));
@@ -33759,6 +33793,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
                 fclose(tf);
             }
         }
+        present_dxgi_latency1_install(1);
         g_real = load_real();
         if (g_real) {
             real_wglCreateContext = (wglCreateContext_t)GetProcAddress(g_real, "wglCreateContext");
@@ -33963,6 +33998,7 @@ static wglCreateContextAttribsARB_t real_wglCreateContextAttribsARB;
 
 static HGLRC WINAPI wrap_wglCreateContextAttribsARB(HDC hdc, HGLRC share, const int *attribs)
 {
+    present_dxgi_latency1_install(1);
     if (!real_wglCreateContextAttribsARB)
         real_wglCreateContextAttribsARB =
             (wglCreateContextAttribsARB_t)real_wglGetProcAddress("wglCreateContextAttribsARB");
@@ -34131,6 +34167,7 @@ PROC WINAPI wglGetProcAddress_shim(LPCSTR name)
 
 HGLRC WINAPI wglCreateContext_shim(HDC hdc)
 {
+    present_dxgi_latency1_install(1);
     return real_wglCreateContext ? real_wglCreateContext(hdc) : NULL;
 }
 
@@ -34158,6 +34195,7 @@ static void present_probe(const char *stage, HDC hdc, long result,
 
 BOOL WINAPI wglMakeCurrent_shim(HDC hdc, HGLRC hglrc)
 {
+    perf_rs_close_pending();
     if (g_swap_log_count < 400) {
         FILE *f = fopen("C:\\fgo\\_tools\\glshim\\swap.log", "a");
         if (f) {
@@ -34193,6 +34231,7 @@ BOOL WINAPI wglMakeCurrent_shim(HDC hdc, HGLRC hglrc)
 
 BOOL WINAPI wglDeleteContext_shim(HGLRC hglrc)
 {
+    perf_rs_close_pending();
     BOOL deleted = real_wglDeleteContext ? real_wglDeleteContext(hglrc) : FALSE;
     if (deleted) bindless_sampler_handle_cache_invalidate();
     if (deleted) perf_rs_context_deleted(hglrc);
@@ -34350,6 +34389,7 @@ static void pace_wait_until(LARGE_INTEGER *now, LONGLONG deadline, LONGLONG freq
     }
 }
 
+
 /* v5.1 measures every interval from the previous actual arrival. A late
    frame therefore never shortens the next one. The frequency%60 remainder
    only inserts a single QPC tick, so on-time frames average exactly 1/60 s. */
@@ -34413,6 +34453,8 @@ static void pace_frame_60hz(void)
     if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&now);
     if (freq.QuadPart < 60) return;
+    /* Keep the game clock independent of scanout. DXGI synchronizes display;
+       rounding this wait to vblanks would alternate the game's own timestep. */
     deadline = pace_anchor_deadline(&anchor, now.QuadPart, freq.QuadPart);
     if (now.QuadPart < deadline)
         pace_wait_until(&now, deadline, freq.QuadPart);
@@ -34421,6 +34463,7 @@ static void pace_frame_60hz(void)
 
 static void frame_boundary_bookkeeping(void)
 {
+    perf_rs_close_pending();
     present_timeline_boundary(0);
     battle_observe_arm();
 
@@ -34961,7 +35004,8 @@ static void present_compose_log(const char *fmt, ...)
    Measured on this 7900 XTX with a flip-model probe: Independent Flip /
    AllowsTearing=1 became Composed Flip / AllowsTearing=0, while CPUWait stayed
    below 0.3 ms. DwmFlush only locked the probe to 16.67 ms and left tearing
-   enabled, so it is not used here. The CPU frame limiter stays out of this path. */
+   enabled, so it is not used here. The window is shown without activation so
+   the game keeps foreground. The CPU frame limiter stays out of this path. */
 static void present_force_composition(HDC hdc)
 {
     HWND game;
@@ -34985,22 +35029,24 @@ static void present_force_composition(HDC hdc)
         DestroyWindow(g_present_compose_occluder);
     g_present_compose_occluder = CreateWindowExW(
         WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
-        L"STATIC", L"", WS_POPUP | WS_VISIBLE,
+        L"STATIC", L"", WS_POPUP,
         x, y, 1, 1, game, NULL, GetModuleHandleW(NULL), NULL);
     g_present_compose_anchor = wr;
     if (!g_present_compose_occluder) {
         present_compose_log("create failed err=%lu game=%p", GetLastError(), (void *)game);
         return;
     }
+    ShowWindow(g_present_compose_occluder, SW_SHOWNOACTIVATE);
     SetWindowPos(g_present_compose_occluder, HWND_TOPMOST, x, y, 1, 1,
                  SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    present_compose_log("occluder=%p game=%p rect=%ld,%ld,%ld,%ld",
+    present_compose_log("occluder=%p game=%p noactivate=1 rect=%ld,%ld,%ld,%ld",
                         (void *)g_present_compose_occluder, (void *)game,
                         (long)wr.left, (long)wr.top, (long)wr.right, (long)wr.bottom);
 }
 
 static BOOL WINAPI hook_gdi32_SwapBuffers(HDC hdc)
 {
+    perf_rs_close_pending();
     present_force_composition(hdc);
     submission_gpu_swap_begin();
     present_timeline_swap_begin(hdc, 0);
@@ -35043,10 +35089,7 @@ static BOOL WINAPI hook_gdi32_SwapBuffers(HDC hdc)
     /* Frame pacing runs once at the render-loop boundary in
        pace_frame_60hz(); keeping it out of both swap hooks avoids double waits
        when the game presents through both WGL and GDI imports. */
-#if 0
-    /* pure passthrough when no diagnostics needed; set to 0 to enable logging */
-    return r;
-#endif
+
     if (g_log_on && (g_gdi_swap_logged < 20 || (g_frame_count % 300) == 0)) {
         g_gdi_swap_logged++;
         FILE *f = fopen("C:\\fgo\\_tools\\glshim\\swap.log", "a");
@@ -35263,6 +35306,7 @@ static void scene_color_origin_probe_present(void)
 
 BOOL WINAPI wglSwapBuffers_shim(HDC hdc)
 {
+    perf_rs_close_pending();
     present_force_composition(hdc);
     submission_gpu_swap_begin();
     present_timeline_swap_begin(hdc, 1);

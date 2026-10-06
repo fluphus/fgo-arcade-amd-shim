@@ -31,6 +31,9 @@ __declspec(dllexport) int TestCacheSubmit(GLuint shader, GLenum type,
     return cache_submits == 1 && cache_receiver == shader ? cache_submitted_len : -1;
 }
 __declspec(dllexport) const char *TestCacheOutput(void) { return cache_submitted; }
+__declspec(dllexport) void TestCacheMemory(int enabled) { g_shader_memory_cache_on = enabled; }
+__declspec(dllexport) unsigned long long TestCacheMemoryHits(void) { return g_shader_memory_cache_hits; }
+__declspec(dllexport) unsigned long long TestCacheDiskReads(void) { return g_shader_cache_disk_reads; }
 __declspec(dllexport) int TestCacheMetadata(GLuint shader, void *out)
 {
     unsigned char *p = out;

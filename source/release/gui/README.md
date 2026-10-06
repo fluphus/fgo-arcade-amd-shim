@@ -1,10 +1,10 @@
-# FGO Arcade AMD Patch · 2026.09.25
+# FGO Arcade AMD Patch · 2026.10.06
 
 [中文](README.zh-CN.md) | [日本語](README.ja.md)
 
 **The patch has a built-in 60 FPS cap and presentation synchronization.**
 
-This update improves 60 FPS pacing, reuses texture and sampler state between compatible draws, and speeds up tiled lighting. It also fixes render-target state restoration during scene-color copies.
+This update caches translated shaders in memory to reduce repeated disk reads, fixes shared video texture copies after scene changes, and reduces CPU overhead during video copying.
 
 ## Display Settings
 
@@ -18,6 +18,8 @@ This update improves 60 FPS pacing, reuses texture and sampler state between com
 2. Run `FgoAmdPatch.exe`. Click **Browse** and select the folder containing `ago.exe`, or its parent containing `App`.
 3. Click **Install / Update**, then use your usual game launcher.
 4. To undo the installation, select the same folder and click **Restore Last Backup**. Backups are in the game's `shim-backups` folder.
+
+Keep `amdcfg/amdOglpSettings.cfg` in the game directory alongside `opengl32.dll`. The installer copies both; a missing configuration can severely reduce performance in some maps.
 
 Requires 64-bit Windows 10/11 with its included .NET Framework and Windows PowerShell. The installer backs up existing files and preserves account, server, save and launcher settings. Game files are not included.
 

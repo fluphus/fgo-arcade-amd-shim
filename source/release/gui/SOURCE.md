@@ -3,6 +3,23 @@
 This directory contains source for the renderer, installer and development tools.
 Run commands from this `source` directory in 64-bit Windows PowerShell.
 
+## Shader Memory Cache and Video Copy
+
+Translated GLSL is cached in memory (128 entries, 8 MiB) before the existing
+disk cache. Shader stage and exact source bytes identify entries; cached
+translation metadata is restored with the source.
+
+The shared-video copy fallback remains active when diagnostic destination
+records are exhausted. Full-frame diagnostic hashing runs only when its log
+can be written. This package updates the OpenGL renderer; client-specific
+video-player hooks are separate.
+
+`tools/run-fixtures.ps1` includes the memory-cache and CPU video-copy
+regressions. They check source/metadata equality, cache eviction, pixel/API
+parity and copying without destination tags. The video fixture includes the
+previous copy function, so it also runs from a source ZIP without Git history.
+These checks do not require a GPU or measure gameplay FPS.
+
 ## Build
 
 Install [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw/releases) and add its
@@ -16,6 +33,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\gui\build.ps1
 ```
 
 Renderer output: `build/opengl32.dll` and `build/amdcfg/amdOglpSettings.cfg`.
+Distribute and install both; the AMD configuration is required for performance.
 The GUI output is `build/gui-release/FgoAmdPatch.exe`. The installer uses the
 files under `game-patch` and validates them against `SHA256SUMS.txt`.
 

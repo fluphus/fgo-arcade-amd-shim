@@ -4218,9 +4218,12 @@ static void mp4_video_copy_cpu_fallback(GLuint src, GLenum src_target,
         dst_target != 0x0DE1 || src_level < 0 || dst_level < 0 ||
         src_x != 0 || src_y != 0 || src_z != 0 || dst_x != 0 ||
         dst_y != 0 || dst_z != 0 || width < 640 || height < 360 ||
-        depth != 1 || !idle_video_probe_is_shared_tex(src) ||
-        !idle_video_probe_is_video_tex(dst))
+        depth != 1 || !idle_video_probe_is_shared_tex(src))
         return;
+
+    /* The live shared source and copy shape identify this video transfer.
+       Destination tags are diagnostic: the fixed metadata table can fill
+       after scene changes, but the AMD copy workaround must keep working. */
 
     typedef void (WINAPI *mp4_get_texture_image_t)(GLuint, GLint, GLenum,
                                                     GLenum, GLsizei, void *);
@@ -4258,12 +4261,14 @@ static void mp4_video_copy_cpu_fallback(GLuint src, GLenum src_target,
     perf_timing_record(&g_perf_copy_fallback_calls,
                        &g_perf_copy_fallback_ticks, perf_fallback_start);
 
-    unsigned long long hash = dataflow_hash_bytes(pixels, pixels_size);
-    if (g_mp4_video_copy_cpu_fallback_lines < 128) {
+    /* The full-image hash is diagnostic only; paused movie tasks can copy
+       every frame even when quiet release logging discards this record. */
+    if (!g_telemetry_quiet && g_mp4_video_copy_cpu_fallback_lines < 128) {
         FILE *f = fopen(
             "C:\\fgo\\_tools\\glshim\\mp4_video_copy_cpu_fallback_v1.log",
             "a");
         if (f) {
+            unsigned long long hash = dataflow_hash_bytes(pixels, pixels_size);
             fprintf(f,
                     "pid=%lu frame=%llu src=%u dst=%u size=%dx%d bytes=%llu "
                     "before=0x%x read_error=0x%x write_error=0x%x "
@@ -30834,17 +30839,99 @@ static unsigned long long shader_cache_hash(const char *source, unsigned int len
     return h;
 }
 
-static int shader_cache_path(GLuint shader, GLenum type, const char *source,
-                             unsigned int len, char *path, size_t cap,
-                             unsigned long long *ha, unsigned long long *hb)
+static int shader_cache_eligible(GLuint shader, const char *source)
 {
-    char module[MAX_PATH], *slash;
-    if (shader >= 65536 || !g_shader_cache_on || !g_self_module || !source || !path || cap < 64 ||
+    if (shader >= 65536 || !g_shader_cache_on || !g_self_module || !source ||
         g_api_disable_mask || g_shader_compile_check_on) return 0;
 #if defined(FGO_DEVELOPMENT_MARKERS)
     /* Development markers can change lowering at runtime. */
     return 0;
 #endif
+    return 1;
+}
+
+#define SHADER_MEMORY_CACHE_ENTRIES 128
+#define SHADER_MEMORY_CACHE_BYTES (8u * 1024u * 1024u)
+typedef struct {
+    char *input, *output;
+    unsigned int input_len, output_len;
+    GLenum type;
+    unsigned long long hash_a, hash_b, used;
+    unsigned char pointers[sizeof g_shader_ptrs[0]];
+    int replaced, had_nv_pointer;
+} shader_memory_cache_entry;
+static shader_memory_cache_entry g_shader_memory_cache[SHADER_MEMORY_CACHE_ENTRIES];
+static size_t g_shader_memory_cache_bytes;
+static unsigned long long g_shader_memory_cache_clock, g_shader_memory_cache_hits;
+static unsigned long long g_shader_cache_disk_reads;
+static int g_shader_memory_cache_on = 1;
+
+static void shader_memory_cache_drop(shader_memory_cache_entry *entry)
+{
+    if (!entry->input) return;
+    g_shader_memory_cache_bytes -= sizeof *entry + entry->input_len + entry->output_len + 2;
+    HeapFree(GetProcessHeap(), 0, entry->input);
+    HeapFree(GetProcessHeap(), 0, entry->output);
+    memset(entry, 0, sizeof *entry);
+}
+
+static shader_memory_cache_entry *shader_memory_cache_find(GLenum type,
+    const char *source, unsigned int len, unsigned long long ha, unsigned long long hb)
+{
+    for (unsigned int i = 0; i < SHADER_MEMORY_CACHE_ENTRIES; ++i) {
+        shader_memory_cache_entry *entry = &g_shader_memory_cache[i];
+        if (entry->input && entry->type == type && entry->input_len == len &&
+            entry->hash_a == ha && entry->hash_b == hb && !memcmp(entry->input, source, len))
+            return entry;
+    }
+    return NULL;
+}
+
+static void shader_memory_cache_remember(GLuint shader, GLenum type,
+    const char *source, unsigned int len, const char *output, unsigned int output_len,
+    unsigned long long ha, unsigned long long hb)
+{
+    shader_memory_cache_entry *entry = NULL;
+    size_t charge = sizeof *entry + (size_t)len + output_len + 2;
+    if (!g_shader_memory_cache_on || !output || !output_len ||
+        charge > SHADER_MEMORY_CACHE_BYTES || !shader_cache_eligible(shader, source)) return;
+    if (shader_memory_cache_find(type, source, len, ha, hb)) return;
+    while (!entry || charge > SHADER_MEMORY_CACHE_BYTES - g_shader_memory_cache_bytes) {
+        shader_memory_cache_entry *oldest = NULL;
+        entry = NULL;
+        for (unsigned int i = 0; i < SHADER_MEMORY_CACHE_ENTRIES; ++i) {
+            shader_memory_cache_entry *item = &g_shader_memory_cache[i];
+            if (!item->input) entry = item;
+            else if (!oldest || item->used < oldest->used) oldest = item;
+        }
+        if (entry && charge <= SHADER_MEMORY_CACHE_BYTES - g_shader_memory_cache_bytes) break;
+        if (!oldest) return;
+        shader_memory_cache_drop(oldest);
+    }
+    char *input_copy = (char *)HeapAlloc(GetProcessHeap(), 0, (size_t)len + 1);
+    char *output_copy = (char *)HeapAlloc(GetProcessHeap(), 0, (size_t)output_len + 1);
+    if (!input_copy || !output_copy) {
+        if (input_copy) HeapFree(GetProcessHeap(), 0, input_copy);
+        if (output_copy) HeapFree(GetProcessHeap(), 0, output_copy);
+        return;
+    }
+    memcpy(input_copy, source, len); input_copy[len] = 0;
+    memcpy(output_copy, output, output_len); output_copy[output_len] = 0;
+    entry->input = input_copy; entry->output = output_copy;
+    entry->input_len = len; entry->output_len = output_len; entry->type = type;
+    entry->hash_a = ha; entry->hash_b = hb; entry->used = ++g_shader_memory_cache_clock;
+    memcpy(entry->pointers, &g_shader_ptrs[shader], sizeof entry->pointers);
+    entry->replaced = g_shader_replaced[shader];
+    entry->had_nv_pointer = g_shader_had_nv_pointer[shader];
+    g_shader_memory_cache_bytes += charge;
+}
+
+static int shader_cache_path(GLuint shader, GLenum type, const char *source,
+                             unsigned int len, char *path, size_t cap,
+                             unsigned long long *ha, unsigned long long *hb)
+{
+    char module[MAX_PATH], *slash;
+    if (!shader_cache_eligible(shader, source) || !path || cap < 64) return 0;
     if (!GetModuleFileNameA(g_self_module, module, sizeof module)) return 0;
     slash = strrchr(module, '\\');
     if (!slash) return 0;
@@ -30896,9 +30983,26 @@ static int shader_cache_try_load(GLuint shader, GLenum type, const char *source,
     shader_cache_header h;
     FILE *f;
     char *out;
+    if (!shader_cache_eligible(shader, source)) return 0;
+    ha = shader_cache_hash(source, len, type, 1469598103934665603ULL);
+    hb = shader_cache_hash(source, len, type, 1099511628211ULL ^ 0x5348494d43414348ULL);
+    shader_memory_cache_entry *entry = g_shader_memory_cache_on ?
+        shader_memory_cache_find(type, source, len, ha, hb) : NULL;
+    if (entry) {
+        GLint out_len = (GLint)entry->output_len;
+        memcpy(&g_shader_ptrs[shader], entry->pointers, sizeof entry->pointers);
+        g_shader_replaced[shader] = entry->replaced;
+        g_shader_had_nv_pointer[shader] = entry->had_nv_pointer;
+        real_glShaderSource(shader, 1, (const char *const *)&entry->output, &out_len);
+        store_shader_src(shader, entry->output, out_len);
+        entry->used = ++g_shader_memory_cache_clock;
+        ++g_shader_memory_cache_hits;
+        return 1;
+    }
     if (!shader_cache_path(shader, type, source, len, path, sizeof path, &ha, &hb)) return 0;
     f = fopen(path, "rb");
     if (!f) return 0;
+    ++g_shader_cache_disk_reads;
     if (fread(&h, 1, sizeof h, f) != sizeof h || memcmp(h.magic, "FGOSHDR5", 8) != 0 ||
         h.version != 5 || h.shader_type != type || h.reserved != 0 ||
         h.source_len != len || h.hash_a != ha || h.hash_b != hb ||
@@ -30916,6 +31020,7 @@ static int shader_cache_try_load(GLuint shader, GLenum type, const char *source,
     g_shader_had_nv_pointer[shader] = g_shader_had_nv_pointer[shader] ? 1 : 0;
     { GLint out_len = (GLint)h.output_len; real_glShaderSource(shader, 1, (const char *const *)&out, &out_len); }
     store_shader_src(shader, out, (int)h.output_len);
+    shader_memory_cache_remember(shader, type, source, len, out, h.output_len, ha, hb);
     HeapFree(GetProcessHeap(), 0, out);
     return 1;
 }
@@ -30930,6 +31035,8 @@ static void shader_cache_write(GLuint shader, GLenum type, const char *source,
     char *slash;
     if (!g_shader_cache_capture || g_shader_cache_capture_shader != shader ||
         !shader_cache_path(shader, type, source, len, path, sizeof path, &ha, &hb)) return;
+    shader_memory_cache_remember(shader, type, source, len, g_shader_cache_capture,
+        g_shader_cache_capture_len, ha, hb);
     strcpy(dir, path); slash = strrchr(dir, '\\'); if (!slash) return; *slash = 0;
     CreateDirectoryA(dir, NULL);
     _snprintf(temp, sizeof temp, "%s.tmp.%lu", path, (unsigned long)GetCurrentProcessId());

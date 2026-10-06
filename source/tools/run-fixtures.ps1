@@ -24,16 +24,20 @@ function Compile([string]$Source, [string]$Name, [string[]]$Flags = @()) {
 Push-Location $root
 try {
     $results = @()
-    foreach ($name in @('pointer_content_cache_test', 'emitter_header_cache_test', 'battle_emitter_pointer_test', 'frame_pacing_test')) {
+    foreach ($name in @('pointer_content_cache_test', 'emitter_header_cache_test', 'battle_emitter_pointer_test', 'frame_pacing_test', 'shader_memory_cache_test')) {
         $exe = Compile ($name + '.c') ($name + '.exe')
         $output = Join-Path $build $name
         New-Item -ItemType Directory -Path $output -Force | Out-Null
-        if ($name -in @('pointer_content_cache_test','frame_pacing_test')) { & $exe *> (Join-Path $output 'result.log') }
+        if ($name -in @('pointer_content_cache_test','frame_pacing_test','shader_memory_cache_test')) { & $exe *> (Join-Path $output 'result.log') }
         else { & $exe $output (Join-Path $fixtures 'particle') *> (Join-Path $output 'result.log') }
         if ($LASTEXITCODE -ne 0) { throw "Fixture failed: $name. See $output\result.log" }
         $results += $name
         Write-Output "PASS $name"
     }
+    & python tests\mp4_quiet_hash_test.py *> (Join-Path $build 'mp4-quiet-hash.log')
+    if ($LASTEXITCODE -ne 0) { throw 'Video-copy regression failed; see mp4-quiet-hash.log.' }
+    $results += 'mp4_quiet_hash'
+    Write-Output 'PASS mp4_quiet_hash'
     if ($Driver -or $Benchmarks) {
         & python -c 'import pefile'
         if ($LASTEXITCODE -ne 0) { throw 'Install 64-bit Python and pefile.' }
